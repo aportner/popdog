@@ -1,8 +1,12 @@
 # popdog
 
-A Discord bot foundation for a ReHLDS Counter-Strike 1.6 server. The current
-milestone connects to Discord and provides a `/ping` slash command. GoldSrc RCON
-and server event relaying can be added next.
+A Discord bot for a ReHLDS Counter-Strike 1.6 server. It connects to Discord and
+queries the game server over GoldSrc's public UDP server-query protocol.
+
+Current commands:
+
+- `/ping` — check the Discord connection
+- `/cs status` — show the server name, map, players, address, and query latency
 
 ## Discord setup
 
@@ -22,7 +26,8 @@ and server event relaying can be added next.
    ```
 
    Fill in the application ID, bot token, and server ID. `.env` is ignored by
-   Git so credentials are not committed.
+   Git so credentials are not committed. Also set `GOLDSRC_HOST` and
+   `GOLDSRC_PORT` when ReHLDS is not listening on `127.0.0.1:27015`.
 6. Register the command in your test server, then run the bot:
 
    ```sh
@@ -30,14 +35,16 @@ and server event relaying can be added next.
    npm start
    ```
 
-Guild commands generally appear immediately. In Discord, run `/ping`; popdog
-should answer with its gateway latency.
+Guild commands generally appear immediately. In Discord, run `/ping`, then
+`/cs status`. The host running popdog must be able to reach the ReHLDS game port
+over UDP.
 
 ## Development
 
 ```sh
 npm run dev
 npm run check
+npm test
 ```
 
 Run `npm run register` again whenever slash-command definitions change.

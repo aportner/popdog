@@ -5,4 +5,12 @@ const ping = new SlashCommandBuilder()
   .setDescription('Check whether popdog is online')
   .setContexts(InteractionContextType.Guild);
 
-module.exports = { commands: [ping.toJSON()] };
+const cs = new SlashCommandBuilder()
+  .setName('cs')
+  .setDescription('Counter-Strike 1.6 server commands')
+  .setContexts(InteractionContextType.Guild)
+  .addSubcommand((subcommand) =>
+    subcommand.setName('status').setDescription('Show the game server status'),
+  );
+
+module.exports = { commands: [ping.toJSON(), cs.toJSON()] };

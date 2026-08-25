@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "register": "node src/register-commands.js",
-    "check": "node --check src/index.js && node --check src/register-commands.js"
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/register-commands.js && node --check src/goldsrc-query.js"
   },
   "engines": {
     "node": ">=20.0.0"
