@@ -9,6 +9,7 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { loadConfig } = require('./config');
+const { GameCommandRouter } = require('./game-command-router');
 const { GoldSrcLogReceiver } = require('./goldsrc-log-receiver');
 const { GoldSrcQuery } = require('./goldsrc-query');
 const { GoldSrcRcon, sanitizeSayText } = require('./goldsrc-rcon');
@@ -17,7 +18,10 @@ const { registerLogTarget, unregisterLogTarget } = require('./log-registration')
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const gameServer = new GoldSrcQuery(config.gameServer);
-const gameLogs = new GoldSrcLogReceiver(config.gameLogs);
+const gameLogs = new GoldSrcLogReceiver({
+  ...config.gameLogs,
+  secrets: [config.gameServer.rconPassword],
+});
 const rcon = new GoldSrcRcon({
   host: config.gameServer.host,
   port: config.gameServer.port,
@@ -26,6 +30,10 @@ const rcon = new GoldSrcRcon({
 });
 let registeredLogTarget = false;
 let shuttingDown = false;
+const gameCommands = new GameCommandRouter({
+  rcon,
+  allowedSteamIds: config.gameCommands.allowedSteamIds,
+});
 
 gameLogs.on('socketError', (error) => {
   console.error('ReHLDS log receiver error:', error);
@@ -34,6 +42,26 @@ gameLogs.on('socketError', (error) => {
 if (config.gameLogs.debug) {
   gameLogs.on('event', (event) => console.log('[ReHLDS event]', event));
 }
+
+gameLogs.on('chat', (event) => {
+  void gameCommands
+    .handle(event)
+    .then((result) => {
+      if (!result.matched) return;
+      if (!result.authorized) {
+        console.warn(
+          `Denied in-game command ${result.trigger} from ${event.player.name} (${result.authId})`,
+        );
+      } else if (result.executed) {
+        console.log(
+          `Executed ${result.rconCommand} for ${event.player.name} (${result.authId})`,
+        );
+      }
+    })
+    .catch((error) => {
+      console.error(`In-game command from ${event.player.authId} failed:`, error);
+    });
+});
 
 function canControlServer(interaction) {
   if (config.adminRoleId) {
@@ -146,6 +174,11 @@ async function start() {
         `Registered ReHLDS log destination ${config.gameLogs.advertiseHost}:` +
           `${config.gameLogs.advertisePort} through RCON`,
       );
+    }
+    if (config.gameCommands.allowedSteamIds.length === 0) {
+      console.warn('No GOLDSRC_COMMAND_STEAM_IDS are configured; all in-game commands are disabled.');
+    } else {
+      console.log(`Loaded ${config.gameCommands.allowedSteamIds.length} in-game command admin(s)`);
     }
   } catch (error) {
     console.error('Could not initialize ReHLDS log ingestion:', error);

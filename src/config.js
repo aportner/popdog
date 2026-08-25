@@ -23,6 +23,20 @@ function boolean(name, fallback = false) {
   throw new Error(`${name} must be true or false`);
 }
 
+function steamIds(name) {
+  const values = (process.env[name] || '')
+    .split(',')
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+
+  for (const value of values) {
+    if (!/^STEAM_[0-5]:[01]:\d+$/.test(value)) {
+      throw new Error(`${name} contains an invalid Steam2 ID: ${value}`);
+    }
+  }
+  return [...new Set(values)];
+}
+
 function loadConfig() {
   const gameServerHost = process.env.GOLDSRC_HOST?.trim() || '127.0.0.1';
   const gameServerPort = integer('GOLDSRC_PORT', 27015, 1, 65535);
@@ -55,6 +69,9 @@ function loadConfig() {
       keepaliveIntervalMs: integer('GOLDSRC_LOG_KEEPALIVE_INTERVAL_MS', 15_000, 5_000, 60_000),
       gameHost: gameServerHost,
       gamePort: gameServerPort,
+    },
+    gameCommands: {
+      allowedSteamIds: steamIds('GOLDSRC_COMMAND_STEAM_IDS'),
     },
   };
 }

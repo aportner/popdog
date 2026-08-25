@@ -72,6 +72,16 @@ parsed events to stdout. Nothing is posted to Discord. Player chat is already
 emitted internally as a structured `chat` event containing the name, user ID,
 Steam ID, team, message, and whether it was team-only.
 
+Authorized players can run exact-match chat commands:
+
+- `.lo3` executes `lo3.cfg`
+- `.pregame` executes `pregame.cfg`
+
+Configure the comma-separated Steam2 allow-list with
+`GOLDSRC_COMMAND_STEAM_IDS`. Commands are mapped to fixed RCON strings rather
+than interpolating player input, and duplicate triggers have a three-second
+cooldown.
+
 For temporary testing from a laptop behind ordinary stateful NAT, set
 `GOLDSRC_LOG_NAT_KEEPALIVE=true`. Popdog will send a harmless A2S_INFO query
 from the same UDP socket every 15 seconds to keep a return mapping open. Point

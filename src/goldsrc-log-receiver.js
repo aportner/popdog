@@ -17,21 +17,35 @@ function cleanText(value) {
 }
 
 function parseLogPacket(packet) {
-  if (
-    packet.length < 5 ||
-    !packet.subarray(0, 4).equals(CONNECTIONLESS_HEADER) ||
-    packet[4] !== LOG_STRING_RESPONSE
-  ) {
+  if (packet.length < 5 || !packet.subarray(0, 4).equals(CONNECTIONLESS_HEADER)) {
     return [];
   }
 
-  return packet
-    .subarray(5)
+  let payload;
+  if (packet[4] === LOG_STRING_RESPONSE) {
+    // Newer S2A_LOGSTRING packet: 0xffffffff + 'R' + line.
+    payload = packet.subarray(5);
+  } else if (packet.length >= 8 && packet.subarray(4, 8).toString('ascii') === 'log ') {
+    // Classic GoldSrc packet: 0xffffffff + 'log ' + line.
+    payload = packet.subarray(8);
+  } else {
+    return [];
+  }
+
+  return payload
     .toString('utf8')
     .replace(/\0+$/g, '')
     .split(/\r?\n/)
     .map(cleanText)
     .filter(Boolean);
+}
+
+function redactLogLine(line, secrets) {
+  let redacted = line;
+  for (const secret of secrets) {
+    if (secret) redacted = redacted.split(secret).join('[REDACTED]');
+  }
+  return redacted;
 }
 
 function parseLogLine(raw) {
@@ -66,6 +80,7 @@ class GoldSrcLogReceiver extends EventEmitter {
     keepaliveIntervalMs = 15_000,
     gameHost,
     gamePort = 27015,
+    secrets = [],
   }) {
     super();
     this.bindHost = bindHost;
@@ -75,6 +90,7 @@ class GoldSrcLogReceiver extends EventEmitter {
     this.keepaliveIntervalMs = keepaliveIntervalMs;
     this.gameHost = gameHost;
     this.gamePort = gamePort;
+    this.secrets = secrets.filter(Boolean);
     this.socket = null;
     this.keepaliveTimer = null;
     this.allowedAddresses = new Set();
@@ -91,7 +107,8 @@ class GoldSrcLogReceiver extends EventEmitter {
     socket.on('message', (packet, remote) => {
       if (!this.allowedAddresses.has(remote.address)) return;
 
-      for (const raw of parseLogPacket(packet)) {
+      for (const unredacted of parseLogPacket(packet)) {
+        const raw = redactLogLine(unredacted, this.secrets);
         const event = parseLogLine(raw);
         this.emit('line', raw);
         this.emit('event', event);
@@ -141,4 +158,4 @@ class GoldSrcLogReceiver extends EventEmitter {
   }
 }
 
-module.exports = { GoldSrcLogReceiver, parseLogLine, parseLogPacket };
+module.exports = { GoldSrcLogReceiver, parseLogLine, parseLogPacket, redactLogLine };

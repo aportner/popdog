@@ -6,6 +6,7 @@ const {
   GoldSrcLogReceiver,
   parseLogLine,
   parseLogPacket,
+  redactLogLine,
 } = require('../src/goldsrc-log-receiver');
 
 const header = Buffer.from([0xff, 0xff, 0xff, 0xff, 0x52]);
@@ -27,6 +28,22 @@ test('parses GoldSrc log packets and structured chat events', () => {
     },
     raw: chatLine,
   });
+});
+
+test('parses classic GoldSrc log framing', () => {
+  const packet = Buffer.concat([
+    Buffer.from([0xff, 0xff, 0xff, 0xff]),
+    Buffer.from(`log ${chatLine}\n\0`),
+  ]);
+  assert.deepEqual(parseLogPacket(packet), [chatLine]);
+});
+
+test('redacts configured secrets before emitting logs', () => {
+  const line = 'Rcon: "rcon 12345 "very-secret" status"';
+  assert.equal(
+    redactLogLine(line, ['very-secret']),
+    'Rcon: "rcon 12345 "[REDACTED]" status"',
+  );
 });
 
 test('receives a log event over UDP from the allowed host', async (t) => {
