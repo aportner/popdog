@@ -11,6 +11,19 @@ const cs = new SlashCommandBuilder()
   .setContexts(InteractionContextType.Guild)
   .addSubcommand((subcommand) =>
     subcommand.setName('status').setDescription('Show the game server status'),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('say')
+      .setDescription('Send a message to players on the game server')
+      .addStringOption((option) =>
+        option
+          .setName('message')
+          .setDescription('Message to send')
+          .setMinLength(1)
+          .setMaxLength(180)
+          .setRequired(true),
+      ),
   );
 
 module.exports = { commands: [ping.toJSON(), cs.toJSON()] };

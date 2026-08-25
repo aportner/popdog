@@ -20,10 +20,13 @@ function loadConfig() {
     token: required('DISCORD_TOKEN'),
     clientId: required('DISCORD_CLIENT_ID'),
     guildId: required('DISCORD_GUILD_ID'),
+    adminRoleId: process.env.DISCORD_ADMIN_ROLE_ID?.trim() || null,
     gameServer: {
       host: process.env.GOLDSRC_HOST?.trim() || '127.0.0.1',
       port: integer('GOLDSRC_PORT', 27015, 1, 65535),
       timeoutMs: integer('GOLDSRC_QUERY_TIMEOUT_MS', 2500, 250, 30_000),
+      rconPassword: process.env.GOLDSRC_RCON_PASSWORD?.trim() || null,
+      rconTimeoutMs: integer('GOLDSRC_RCON_TIMEOUT_MS', 2500, 250, 30_000),
     },
   };
 }

@@ -7,6 +7,7 @@ Current commands:
 
 - `/ping` — check the Discord connection
 - `/cs status` — show the server name, map, players, address, and query latency
+- `/cs say` — send an attributed Discord message to players via RCON
 
 ## Discord setup
 
@@ -27,7 +28,9 @@ Current commands:
 
    Fill in the application ID, bot token, and server ID. `.env` is ignored by
    Git so credentials are not committed. Also set `GOLDSRC_HOST` and
-   `GOLDSRC_PORT` when ReHLDS is not listening on `127.0.0.1:27015`.
+   `GOLDSRC_PORT` when ReHLDS is not listening on `127.0.0.1:27015`. To use
+   `/cs say`, set `GOLDSRC_RCON_PASSWORD` to the same long, random value as
+   `rcon_password` in `cstrike/server.cfg`.
 6. Register the command in your test server, then run the bot:
 
    ```sh
@@ -38,6 +41,11 @@ Current commands:
 Guild commands generally appear immediately. In Discord, run `/ping`, then
 `/cs status`. The host running popdog must be able to reach the ReHLDS game port
 over UDP.
+
+`/cs say` requires Discord's Manage Server permission by default. Set
+`DISCORD_ADMIN_ROLE_ID` to use a dedicated role instead. For defense in depth,
+recent ReHLDS builds support `rcon_adduser <ip-or-cidr>` to allow-list the
+popdog host.
 
 ## Development
 
