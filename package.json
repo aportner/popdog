@@ -1,12 +1,22 @@
 {
   "name": "popdog",
-  "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "",
+  "version": "0.1.0",
+  "description": "Discord bot for a ReHLDS Counter-Strike 1.6 server",
+  "license": "MIT",
+  "private": true,
   "type": "commonjs",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "register": "node src/register-commands.js",
+    "check": "node --check src/index.js && node --check src/register-commands.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.22.1",
+    "dotenv": "^17.2.1"
   }
 }
