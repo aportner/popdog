@@ -27,6 +27,15 @@ const rcon = new GoldSrcRcon({
   port: config.gameServer.port,
   password: config.gameServer.rconPassword,
   timeoutMs: config.gameServer.rconTimeoutMs,
+  passwordLabel: 'GOLDSRC_RCON_PASSWORD',
+});
+const hltvRcon = new GoldSrcRcon({
+  host: config.hltv.host,
+  port: config.hltv.port,
+  password: config.hltv.password,
+  timeoutMs: config.hltv.timeoutMs,
+  passwordLabel: 'HLTV_ADMIN_PASSWORD',
+  allowNoResponse: true,
 });
 let registeredLogTarget = false;
 let shuttingDown = false;
@@ -70,6 +79,13 @@ function canControlServer(interaction) {
   return interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
 }
 
+function rconCodeBlock(output) {
+  const text = (output || 'Command sent; HLTV returned no output.')
+    .replace(/```/g, 'ˋˋˋ')
+    .slice(0, 1850);
+  return `\`\`\`text\n${text}\n\`\`\``;
+}
+
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`popdog is online as ${readyClient.user.tag}`);
 });
@@ -82,6 +98,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
       content: `Pong! Discord gateway latency: ${client.ws.ping} ms`,
       flags: MessageFlags.Ephemeral,
     });
+    return;
+  }
+
+  if (interaction.commandName === 'hltv') {
+    if (!canControlServer(interaction)) {
+      await interaction.reply({
+        content: 'You need the configured popdog admin role or Manage Server permission to do that.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const hltvSubcommand = interaction.options.getSubcommand();
+    const command =
+      hltvSubcommand === 'status'
+        ? 'status'
+        : interaction.options.getString('command', true);
+
+    try {
+      const output = await hltvRcon.execute(command);
+      await interaction.editReply(rconCodeBlock(output));
+    } catch (error) {
+      console.error(`HLTV ${hltvSubcommand} command failed:`, error);
+      await interaction.editReply(`Could not run the HLTV command: ${error.message}`);
+    }
     return;
   }
 

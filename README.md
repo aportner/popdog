@@ -9,6 +9,8 @@ Current commands:
 - `/ping` — check the Discord connection
 - `/cs status` — show the server name, map, players, address, and query latency
 - `/cs say` — send an attributed Discord message to players via RCON
+- `/hltv status` — show private HLTV proxy status
+- `/hltv rcon` — run an arbitrary HLTV console command
 
 ## Discord setup
 
@@ -81,6 +83,13 @@ Configure the comma-separated Steam2 allow-list with
 `GOLDSRC_COMMAND_STEAM_IDS`. Commands are mapped to fixed RCON strings rather
 than interpolating player input, and duplicate triggers have a three-second
 cooldown.
+
+## HLTV RCON
+
+Set `HLTV_HOST`, `HLTV_PORT`, and `HLTV_ADMIN_PASSWORD`. The password must match
+HLTV's `adminpassword` setting; it is separate from the game server's
+`rcon_password`. Both `/hltv` subcommands require the configured Discord admin
+role or Manage Server permission, and responses are ephemeral.
 
 For temporary testing from a laptop behind ordinary stateful NAT, set
 `GOLDSRC_LOG_NAT_KEEPALIVE=true`. Popdog will send a harmless A2S_INFO query

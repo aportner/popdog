@@ -73,6 +73,12 @@ function loadConfig() {
     gameCommands: {
       allowedSteamIds: steamIds('GOLDSRC_COMMAND_STEAM_IDS'),
     },
+    hltv: {
+      host: process.env.HLTV_HOST?.trim() || gameServerHost,
+      port: integer('HLTV_PORT', 27020, 1, 65535),
+      password: process.env.HLTV_ADMIN_PASSWORD?.trim() || null,
+      timeoutMs: integer('HLTV_RCON_TIMEOUT_MS', 2500, 250, 30_000),
+    },
   };
 }
 

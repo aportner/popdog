@@ -26,4 +26,25 @@ const cs = new SlashCommandBuilder()
       ),
   );
 
-module.exports = { commands: [ping.toJSON(), cs.toJSON()] };
+const hltv = new SlashCommandBuilder()
+  .setName('hltv')
+  .setDescription('Control the HLTV proxy')
+  .setContexts(InteractionContextType.Guild)
+  .addSubcommand((subcommand) =>
+    subcommand.setName('status').setDescription('Show HLTV proxy status'),
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('rcon')
+      .setDescription('Run an HLTV console command')
+      .addStringOption((option) =>
+        option
+          .setName('command')
+          .setDescription('HLTV command to execute')
+          .setMinLength(1)
+          .setMaxLength(500)
+          .setRequired(true),
+      ),
+  );
+
+module.exports = { commands: [ping.toJSON(), cs.toJSON(), hltv.toJSON()] };

@@ -30,19 +30,28 @@ function sanitizeSayText(value) {
 }
 
 class GoldSrcRcon {
-  constructor({ host, port = 27015, password, timeoutMs = 2500 }) {
+  constructor({
+    host,
+    port = 27015,
+    password,
+    timeoutMs = 2500,
+    passwordLabel = 'RCON password',
+    allowNoResponse = false,
+  }) {
     this.host = host;
     this.port = port;
     this.password = password;
     this.timeoutMs = timeoutMs;
+    this.passwordLabel = passwordLabel;
+    this.allowNoResponse = allowNoResponse;
   }
 
   execute(command) {
     if (!this.password) {
-      return Promise.reject(new Error('GOLDSRC_RCON_PASSWORD is not configured'));
+      return Promise.reject(new Error(`${this.passwordLabel} is not configured`));
     }
     if (/["\r\n\0]/.test(this.password)) {
-      return Promise.reject(new Error('GOLDSRC_RCON_PASSWORD contains unsupported characters'));
+      return Promise.reject(new Error(`${this.passwordLabel} contains unsupported characters`));
     }
 
     const cleanCommand = String(command).replace(/[\r\n\0]/g, ' ').trim();
@@ -65,8 +74,8 @@ class GoldSrcRcon {
 
         if (error) return reject(error);
         const response = output.join('').trim();
-        if (/Bad rcon_password/i.test(response)) {
-          return reject(new Error('ReHLDS rejected GOLDSRC_RCON_PASSWORD'));
+        if (/Bad (?:rcon_password|adminpassword)/i.test(response)) {
+          return reject(new Error(`The remote server rejected ${this.passwordLabel}`));
         }
         if (/banned from this server/i.test(response)) {
           return reject(new Error('The popdog host is banned from ReHLDS RCON'));
@@ -96,7 +105,13 @@ class GoldSrcRcon {
       });
 
       timer = setTimeout(
-        () => finish(new Error(`Timed out using RCON at ${this.host}:${this.port}/udp`)),
+        () => {
+          // HLTV executes some valid commands (notably `say`) without sending
+          // a console-output packet. A received challenge plus a successful
+          // UDP send is sufficient when this compatibility mode is enabled.
+          if (this.allowNoResponse && challenge !== null) finish();
+          else finish(new Error(`Timed out using RCON at ${this.host}:${this.port}/udp`));
+        },
         this.timeoutMs,
       );
 
