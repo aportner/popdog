@@ -1,0 +1,5 @@
+// Popdog normally runs these commands automatically through RCON during
+// startup. They are shown here only as a manual fallback. HLDS uses separate
+// host and port arguments.
+log on
+logaddress_add 127.0.0.1 27500

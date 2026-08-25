@@ -9,18 +9,31 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { loadConfig } = require('./config');
+const { GoldSrcLogReceiver } = require('./goldsrc-log-receiver');
 const { GoldSrcQuery } = require('./goldsrc-query');
 const { GoldSrcRcon, sanitizeSayText } = require('./goldsrc-rcon');
+const { registerLogTarget, unregisterLogTarget } = require('./log-registration');
 
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const gameServer = new GoldSrcQuery(config.gameServer);
+const gameLogs = new GoldSrcLogReceiver(config.gameLogs);
 const rcon = new GoldSrcRcon({
   host: config.gameServer.host,
   port: config.gameServer.port,
   password: config.gameServer.rconPassword,
   timeoutMs: config.gameServer.rconTimeoutMs,
 });
+let registeredLogTarget = false;
+let shuttingDown = false;
+
+gameLogs.on('socketError', (error) => {
+  console.error('ReHLDS log receiver error:', error);
+});
+
+if (config.gameLogs.debug) {
+  gameLogs.on('event', (event) => console.log('[ReHLDS event]', event));
+}
 
 function canControlServer(interaction) {
   if (config.adminRoleId) {
@@ -104,15 +117,70 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-client.login(config.token).catch((error) => {
-  console.error('Discord login failed:', error);
-  process.exitCode = 1;
-});
+async function start() {
+  try {
+    await gameLogs.start();
+    console.log(
+      `Listening for ReHLDS logs on ${config.gameLogs.bindHost}:${config.gameLogs.port}/udp ` +
+        `(allowing ${config.gameLogs.allowedHost})`,
+    );
+    if (config.gameLogs.natKeepalive) {
+      console.log(
+        `Keeping a UDP mapping open to ${config.gameLogs.gameHost}:${config.gameLogs.gamePort}`,
+      );
+    }
 
-function shutdown(signal) {
+    if (config.gameLogs.autoConfigure) {
+      if (!config.gameLogs.advertiseHost) {
+        throw new Error(
+          'GOLDSRC_LOG_ADVERTISE_HOST is required when the log receiver binds to 0.0.0.0',
+        );
+      }
+      await registerLogTarget(
+        rcon,
+        config.gameLogs.advertiseHost,
+        config.gameLogs.advertisePort,
+      );
+      registeredLogTarget = true;
+      console.log(
+        `Registered ReHLDS log destination ${config.gameLogs.advertiseHost}:` +
+          `${config.gameLogs.advertisePort} through RCON`,
+      );
+    }
+  } catch (error) {
+    console.error('Could not initialize ReHLDS log ingestion:', error);
+  }
+
+  try {
+    await client.login(config.token);
+  } catch (error) {
+    console.error('Discord login failed:', error);
+    process.exitCode = 1;
+  }
+}
+
+start();
+
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log(`Received ${signal}; shutting down.`);
+
+  if (registeredLogTarget) {
+    try {
+      await unregisterLogTarget(
+        rcon,
+        config.gameLogs.advertiseHost,
+        config.gameLogs.advertisePort,
+      );
+    } catch (error) {
+      console.error('Could not remove the ReHLDS log destination:', error);
+    }
+  }
+
+  gameLogs.close();
   client.destroy();
 }
 
-process.once('SIGINT', () => shutdown('SIGINT'));
-process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));

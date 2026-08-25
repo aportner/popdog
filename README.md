@@ -1,7 +1,8 @@
 # popdog
 
 A Discord bot for a ReHLDS Counter-Strike 1.6 server. It connects to Discord and
-queries the game server over GoldSrc's public UDP server-query protocol.
+queries the game server over GoldSrc's public UDP server-query protocol. It also
+ingests ReHLDS UDP logs as internal structured events for future game commands.
 
 Current commands:
 
@@ -46,6 +47,37 @@ over UDP.
 `DISCORD_ADMIN_ROLE_ID` to use a dedicated role instead. For defense in depth,
 recent ReHLDS builds support `rcon_adduser <ip-or-cidr>` to allow-list the
 popdog host.
+
+## ReHLDS log ingestion
+
+Popdog listens on UDP port `27500` by default and accepts packets only from
+`GOLDSRC_LOG_ALLOWED_HOST` (or `GOLDSRC_HOST` when unset). After binding the
+receiver, it uses RCON to enable logging and register its exact destination:
+
+```cfg
+logaddress_del POPDOG_HOST_IP 27500
+log on
+logaddress_add POPDOG_HOST_IP 27500
+```
+
+Set `GOLDSRC_LOG_ADVERTISE_HOST` to the address ReHLDS should use. It defaults
+to a specific bind address such as `127.0.0.1`; it must be explicit when binding
+to `0.0.0.0`. Set `GOLDSRC_LOG_AUTO_CONFIGURE=false` only when managing the
+destination manually. Popdog removes its exact destination during a graceful
+shutdown and never calls `logaddress_delall`.
+
+When the processes run on separate hosts, allow inbound UDP `27500` to popdog
+from only the ReHLDS host. Set `GOLDSRC_LOG_DEBUG=true` temporarily to print
+parsed events to stdout. Nothing is posted to Discord. Player chat is already
+emitted internally as a structured `chat` event containing the name, user ID,
+Steam ID, team, message, and whether it was team-only.
+
+For temporary testing from a laptop behind ordinary stateful NAT, set
+`GOLDSRC_LOG_NAT_KEEPALIVE=true`. Popdog will send a harmless A2S_INFO query
+from the same UDP socket every 15 seconds to keep a return mapping open. Point
+`logaddress_add` at the laptop's public IP and port `27500`. This depends on the
+NAT preserving that external port and is intentionally a test convenience, not
+a production networking strategy.
 
 ## Development
 
