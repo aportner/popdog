@@ -11,7 +11,7 @@
     "dev": "node --watch src/index.js",
     "register": "node src/register-commands.js",
     "test": "node --test",
-    "check": "node --check src/index.js && node --check src/register-commands.js && node --check src/goldsrc-query.js && node --check src/goldsrc-rcon.js && node --check src/goldsrc-log-receiver.js && node --check src/log-registration.js && node --check src/game-command-router.js"
+    "check": "node --check src/index.js && node --check src/register-commands.js && node --check src/goldsrc-query.js && node --check src/goldsrc-rcon.js && node --check src/goldsrc-log-receiver.js && node --check src/log-registration.js && node --check src/game-command-router.js && node --check src/disk-space.js"
   },
   "engines": {
     "node": ">=20.0.0"

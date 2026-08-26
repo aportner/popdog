@@ -9,6 +9,7 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { loadConfig } = require('./config');
+const { availableBytes, formatBytes } = require('./disk-space');
 const { GameCommandRouter } = require('./game-command-router');
 const { GoldSrcLogReceiver } = require('./goldsrc-log-receiver');
 const { GoldSrcQuery } = require('./goldsrc-query');
@@ -40,8 +41,18 @@ const hltvRcon = new GoldSrcRcon({
 let registeredLogTarget = false;
 let shuttingDown = false;
 const gameCommands = new GameCommandRouter({
-  rcon,
+  gameRcon: rcon,
+  hltvRcon,
   allowedSteamIds: config.gameCommands.allowedSteamIds,
+  recordingPrefix: config.hltv.recordingPrefix,
+  getDiskSpace: async () => {
+    try {
+      return formatBytes(await availableBytes(config.hltv.diskPath));
+    } catch (error) {
+      console.warn(`Could not check free space at ${config.hltv.diskPath}:`, error.message);
+      return null;
+    }
+  },
 });
 
 gameLogs.on('socketError', (error) => {
@@ -63,7 +74,8 @@ gameLogs.on('chat', (event) => {
         );
       } else if (result.executed) {
         console.log(
-          `Executed ${result.rconCommand} for ${event.player.name} (${result.authId})`,
+          `Executed ${result.executedCommands.join(' -> ')} for ` +
+            `${event.player.name} (${result.authId})`,
         );
       }
     })

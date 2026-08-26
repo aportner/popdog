@@ -78,11 +78,27 @@ Authorized players can run exact-match chat commands:
 
 - `.lo3` executes `lo3.cfg`
 - `.pregame` executes `pregame.cfg`
+- `.record` runs `record <prefix>`, confirms the generated filename through
+  HLTV's `status`, then announces `Start recording to <filename>` through HLTV
+  chat with the available recording disk space appended
+- `.stop` and `.stoprecording` run `stoprecording`, then forward HLTV's exact
+  completed-demo response (`.stop` deliberately does not run HLTV's destructive
+  `stop` command)
 
 Configure the comma-separated Steam2 allow-list with
 `GOLDSRC_COMMAND_STEAM_IDS`. Commands are mapped to fixed RCON strings rather
 than interpolating player input, and duplicate triggers have a three-second
 cooldown.
+
+The recording prefix defaults to `match`, producing HLTV names such as
+`match-date-map.dem`. Override it with `HLTV_RECORDING_PREFIX`; only letters,
+numbers, underscores, and hyphens are accepted.
+
+Popdog checks free space using Node's cross-platform filesystem API. Set
+`HLTV_DISK_PATH` to a path on the filesystem where HLTV stores demos; it
+defaults to the root of popdog's current drive. This measures the machine
+running popdog, so it represents HLTV's disk only when they share that
+filesystem. A failed disk check is logged but does not prevent recording.
 
 ## HLTV RCON
 

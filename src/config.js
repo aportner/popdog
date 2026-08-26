@@ -1,3 +1,5 @@
+const path = require('node:path');
+
 function required(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -35,6 +37,14 @@ function steamIds(name) {
     }
   }
   return [...new Set(values)];
+}
+
+function safeToken(name, fallback) {
+  const value = process.env[name]?.trim() || fallback;
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(value)) {
+    throw new Error(`${name} may contain only letters, numbers, underscores, and hyphens`);
+  }
+  return value;
 }
 
 function loadConfig() {
@@ -78,6 +88,8 @@ function loadConfig() {
       port: integer('HLTV_PORT', 27020, 1, 65535),
       password: process.env.HLTV_ADMIN_PASSWORD?.trim() || null,
       timeoutMs: integer('HLTV_RCON_TIMEOUT_MS', 2500, 250, 30_000),
+      recordingPrefix: safeToken('HLTV_RECORDING_PREFIX', 'match'),
+      diskPath: process.env.HLTV_DISK_PATH?.trim() || path.parse(process.cwd()).root,
     },
   };
 }

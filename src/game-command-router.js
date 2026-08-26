@@ -1,14 +1,62 @@
-const COMMANDS = new Map([
-  ['.lo3', 'exec lo3.cfg'],
-  ['.pregame', 'exec pregame.cfg'],
-]);
+const STOP_RECORDING = {
+  id: 'stoprecording',
+  steps: [
+    {
+      target: 'hltv',
+      command: 'stoprecording',
+      announcePattern: /^Completed demo [a-zA-Z0-9_.-]+\.dem\.$/,
+    },
+  ],
+};
+
+const RECORDING_STATUS_PATTERN =
+  /(?:^|\r?\n)Recording to ([a-zA-Z0-9_.-]+\.dem), Length \d+(?:\.\d+)? sec\.(?:\r?\n|$)/;
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function createCommands(recordingPrefix) {
+  return new Map([
+    ['.lo3', { id: 'lo3', steps: [{ target: 'game', command: 'exec lo3.cfg' }] }],
+    ['.pregame', { id: 'pregame', steps: [{ target: 'game', command: 'exec pregame.cfg' }] }],
+    [
+      '.record',
+      {
+        id: 'record',
+        steps: [
+          {
+            target: 'hltv',
+            command: `record ${recordingPrefix}`,
+            confirmRecording: true,
+          },
+        ],
+      },
+    ],
+    ['.stop', STOP_RECORDING],
+    ['.stoprecording', STOP_RECORDING],
+  ]);
+}
 
 class GameCommandRouter {
-  constructor({ rcon, allowedSteamIds = [], cooldownMs = 3000, now = Date.now }) {
-    this.rcon = rcon;
+  constructor({
+    gameRcon,
+    hltvRcon,
+    allowedSteamIds = [],
+    recordingPrefix = 'match',
+    cooldownMs = 3000,
+    now = Date.now,
+    getDiskSpace = async () => null,
+  }) {
+    this.targets = new Map([
+      ['game', gameRcon],
+      ['hltv', hltvRcon],
+    ]);
     this.allowedSteamIds = new Set(allowedSteamIds.map((id) => id.toUpperCase()));
+    this.commands = createCommands(recordingPrefix);
     this.cooldownMs = cooldownMs;
     this.now = now;
+    this.getDiskSpace = getDiskSpace;
     this.lastExecuted = new Map();
     this.inFlight = new Set();
   }
@@ -17,29 +65,83 @@ class GameCommandRouter {
     if (event.type !== 'chat') return { matched: false };
 
     const trigger = event.message.trim().toLowerCase();
-    const rconCommand = COMMANDS.get(trigger);
-    if (!rconCommand) return { matched: false };
+    const action = this.commands.get(trigger);
+    if (!action) return { matched: false };
 
     const authId = event.player.authId.toUpperCase();
     if (!this.allowedSteamIds.has(authId)) {
       return { matched: true, authorized: false, executed: false, trigger, authId };
     }
 
-    const lastRun = this.lastExecuted.get(trigger);
+    const lastRun = this.lastExecuted.get(action.id);
     const now = this.now();
-    if (this.inFlight.has(trigger) || (lastRun !== undefined && now - lastRun < this.cooldownMs)) {
-      return { matched: true, authorized: true, executed: false, trigger, authId, reason: 'cooldown' };
+    if (
+      this.inFlight.has(action.id) ||
+      (lastRun !== undefined && now - lastRun < this.cooldownMs)
+    ) {
+      return {
+        matched: true,
+        authorized: true,
+        executed: false,
+        trigger,
+        authId,
+        reason: 'cooldown',
+      };
     }
 
-    this.inFlight.add(trigger);
+    this.inFlight.add(action.id);
+    const executedCommands = [];
     try {
-      await this.rcon.execute(rconCommand);
-      this.lastExecuted.set(trigger, now);
-      return { matched: true, authorized: true, executed: true, trigger, authId, rconCommand };
+      for (const step of action.steps) {
+        const rcon = this.targets.get(step.target);
+        if (!rcon) throw new Error(`${step.target} RCON is not configured`);
+        const output = await rcon.execute(step.command);
+        executedCommands.push(`${step.target}: ${step.command}`);
+        let announcementMatch;
+        let announcement;
+        if (step.confirmRecording) {
+          for (let attempt = 0; attempt < 5; attempt += 1) {
+            const status = await rcon.execute('status');
+            executedCommands.push(`${step.target}: status`);
+            announcementMatch = String(status || '').match(RECORDING_STATUS_PATTERN);
+            if (announcementMatch) break;
+            if (attempt < 4) await wait(250);
+          }
+
+          if (!announcementMatch) {
+            throw new Error('HLTV did not confirm the recording through its status output');
+          }
+          announcement = `Start recording to ${announcementMatch[1]}.`;
+        } else {
+          announcementMatch = step.announcePattern
+            ? String(output || '').match(step.announcePattern)
+            : null;
+          announcement = announcementMatch?.[0];
+        }
+
+        if (announcementMatch) {
+          if (action.id === 'record') {
+            const diskSpace = await this.getDiskSpace();
+            if (diskSpace) announcement += ` (${diskSpace} free)`;
+          }
+          const sayCommand = `say ${announcement}`;
+          await rcon.execute(sayCommand);
+          executedCommands.push(`${step.target}: ${sayCommand}`);
+        }
+      }
+      this.lastExecuted.set(action.id, now);
+      return {
+        matched: true,
+        authorized: true,
+        executed: true,
+        trigger,
+        authId,
+        executedCommands,
+      };
     } finally {
-      this.inFlight.delete(trigger);
+      this.inFlight.delete(action.id);
     }
   }
 }
 
-module.exports = { COMMANDS, GameCommandRouter };
+module.exports = { createCommands, GameCommandRouter };
