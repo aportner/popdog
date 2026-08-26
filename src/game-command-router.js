@@ -60,7 +60,9 @@ function resolveAction(message, commands) {
   const exactAction = commands.get(trigger);
   if (exactAction) return { trigger, action: exactAction };
 
-  const setScoreMatch = trimmedMessage.match(/^\.setscore\s+([+-]?\d+)\s+([+-]?\d+)$/i);
+  const setScoreMatch = trimmedMessage.match(
+    /^\.(?:setscore|score)\s+([+-]?\d+)\s+([+-]?\d+)$/i,
+  );
   if (setScoreMatch) {
     const scores = setScoreMatch.slice(1).map(Number);
     if (scores.every((score) => Number.isInteger(score) && score >= -2147483648 && score <= 2147483647)) {

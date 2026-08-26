@@ -116,9 +116,9 @@ test('sets team scores from validated signed 32-bit integers', async () => {
   const { game, router } = harness({ cooldownMs: 3000, now: () => now });
 
   assert.equal((await router.handle(chat('.setscore 12 9'))).executed, true);
-  assert.equal((await router.handle(chat('.setscore 13 10'))).reason, 'cooldown');
+  assert.equal((await router.handle(chat('.score 13 10'))).reason, 'cooldown');
   now += 3001;
-  assert.equal((await router.handle(chat(' .SETSCORE +001 -2 '))).executed, true);
+  assert.equal((await router.handle(chat(' .SCORE +001 -2 '))).executed, true);
   assert.deepEqual(game, ['setscore 12 9', 'setscore 1 -2']);
 });
 
@@ -133,6 +133,7 @@ test('rejects unsafe or malformed score arguments without sending RCON', async (
     '.setscore 1 2; quit',
     '.setscore 2147483648 0',
     '.setscore 0 -2147483649',
+    '.score 1 2; quit',
   ]) {
     assert.equal((await router.handle(chat(command))).matched, false);
   }

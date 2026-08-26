@@ -82,7 +82,8 @@ Authorized players can run exact-match chat commands:
 - `.calot` and `.ot` execute `calot.cfg`
 - `.rr` and `.rr1` run `sv_restart 1`; `.rr3` runs `sv_restart 3`
 - `.map <map>` and `.changelevel <map>` change to a validated map name
-- `.setscore <ct> <t>` sets the CT and Terrorist scores to signed 32-bit integers
+- `.setscore <ct> <t>` and `.score <ct> <t>` set the CT and Terrorist scores
+  to signed 32-bit integers
 - `.record` runs `record <prefix>`, confirms the generated filename through
   HLTV's `status`, then announces `Start recording to <filename>` through HLTV
   chat with the available recording disk space appended
