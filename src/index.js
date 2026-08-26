@@ -15,6 +15,7 @@ const { GoldSrcLogReceiver } = require('./goldsrc-log-receiver');
 const { GoldSrcQuery } = require('./goldsrc-query');
 const { GoldSrcRcon, sanitizeSayText } = require('./goldsrc-rcon');
 const { registerLogTarget, unregisterLogTarget } = require('./log-registration');
+const { createMapPoll } = require('./map-poll');
 
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -135,6 +136,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (error) {
       console.error(`HLTV ${hltvSubcommand} command failed:`, error);
       await interaction.editReply(`Could not run the HLTV command: ${error.message}`);
+    }
+    return;
+  }
+
+  if (interaction.commandName === 'mappoll') {
+    if (!canControlServer(interaction)) {
+      await interaction.reply({
+        content: 'You need the configured popdog admin role or Manage Server permission to do that.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    try {
+      await interaction.reply({ poll: createMapPoll() });
+    } catch (error) {
+      console.error('Could not create the map poll:', error);
+      const response = {
+        content: `Could not create the map poll: ${error.message}`,
+        flags: MessageFlags.Ephemeral,
+      };
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(response);
+      } else {
+        await interaction.reply(response);
+      }
     }
     return;
   }

@@ -111,6 +111,10 @@ HLTV's `adminpassword` setting; it is separate from the game server's
 `rcon_password`. Both `/hltv` subcommands require the configured Discord admin
 role or Manage Server permission, and responses are ephemeral.
 
+`/mappoll` creates the standard 24-hour, multi-select map poll in the channel
+where it is run. It uses the same configured Discord admin role or Manage
+Server permission check.
+
 For temporary testing from a laptop behind ordinary stateful NAT, set
 `GOLDSRC_LOG_NAT_KEEPALIVE=true`. Popdog will send a harmless A2S_INFO query
 from the same UDP socket every 15 seconds to keep a return mapping open. Point

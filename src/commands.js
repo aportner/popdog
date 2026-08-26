@@ -47,4 +47,9 @@ const hltv = new SlashCommandBuilder()
       ),
   );
 
-module.exports = { commands: [ping.toJSON(), cs.toJSON(), hltv.toJSON()] };
+const mappoll = new SlashCommandBuilder()
+  .setName('mappoll')
+  .setDescription('Start the standard 24-hour map vote')
+  .setContexts(InteractionContextType.Guild);
+
+module.exports = { commands: [ping.toJSON(), cs.toJSON(), hltv.toJSON(), mappoll.toJSON()] };
