@@ -62,6 +62,19 @@ test('executes commands from an allowed dead player', async () => {
   assert.deepEqual(game, ['exec cal.cfg']);
 });
 
+test('allows any player to request the read-only server status', async () => {
+  const { game, hltv, router } = harness({
+    getStatusAnnouncement: async () =>
+      '[Popdog] de_dust2 | 10/12 players | HLTV: recording',
+  });
+
+  const result = await router.handle(chat('.status', 'STEAM_0:0:999'));
+  assert.equal(result.authorized, true);
+  assert.equal(result.executed, true);
+  assert.deepEqual(game, ['say [Popdog] de_dust2 | 10/12 players | HLTV: recording']);
+  assert.deepEqual(hltv, []);
+});
+
 test('executes CAL and restart commands, with aliases sharing a cooldown', async () => {
   let now = 1000;
   const { game, router } = harness({ cooldownMs: 3000, now: () => now });

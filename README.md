@@ -74,7 +74,8 @@ parsed events to stdout. Nothing is posted to Discord. Player chat is already
 emitted internally as a structured `chat` event containing the name, user ID,
 Steam ID, team, message, and whether it was team-only or sent while dead.
 
-Authorized players can run exact-match chat commands:
+Any player can run `.status` to report the map, player count, and HLTV recording
+state. Authorized players can additionally run these exact-match chat commands:
 
 - `.lo3` executes `lo3.cfg`
 - `.pregame` executes `pregame.cfg`

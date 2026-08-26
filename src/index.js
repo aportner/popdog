@@ -16,6 +16,7 @@ const { GoldSrcQuery } = require('./goldsrc-query');
 const { GoldSrcRcon, sanitizeSayText } = require('./goldsrc-rcon');
 const { registerLogTarget, unregisterLogTarget } = require('./log-registration');
 const { createMapPoll } = require('./map-poll');
+const { formatMatchStatus } = require('./match-status');
 
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -53,6 +54,17 @@ const gameCommands = new GameCommandRouter({
       console.warn(`Could not check free space at ${config.hltv.diskPath}:`, error.message);
       return null;
     }
+  },
+  getStatusAnnouncement: async () => {
+    const [gameResult, hltvResult] = await Promise.allSettled([
+      gameServer.info(),
+      hltvRcon.execute('status'),
+    ]);
+    return formatMatchStatus({
+      gameInfo: gameResult.status === 'fulfilled' ? gameResult.value : null,
+      hltvStatus: hltvResult.status === 'fulfilled' ? hltvResult.value : null,
+      hltvAvailable: hltvResult.status === 'fulfilled',
+    });
   },
 });
 

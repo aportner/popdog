@@ -1,3 +1,5 @@
+const { HLTV_RECORDING_STATUS_PATTERN } = require('./match-status');
+
 const STOP_RECORDING = {
   id: 'stoprecording',
   steps: [
@@ -31,9 +33,6 @@ function endRound(command) {
   };
 }
 
-const RECORDING_STATUS_PATTERN =
-  /(?:^|\r?\n)Recording to ([a-zA-Z0-9_.-]+\.dem), Length \d+(?:\.\d+)? sec\.(?:\r?\n|$)/;
-
 function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -53,6 +52,14 @@ function createCommands(recordingPrefix) {
     ['.draw', endRound('endround')],
     ['.ctwin', endRound('endround CT')],
     ['.twin', endRound('endround T')],
+    [
+      '.status',
+      {
+        id: 'status',
+        public: true,
+        steps: [{ target: 'game', statusAnnouncement: true }],
+      },
+    ],
     [
       '.record',
       {
@@ -114,6 +121,7 @@ class GameCommandRouter {
     cooldownMs = 3000,
     now = Date.now,
     getDiskSpace = async () => null,
+    getStatusAnnouncement = async () => '[Popdog] Status unavailable',
   }) {
     this.targets = new Map([
       ['game', gameRcon],
@@ -124,6 +132,7 @@ class GameCommandRouter {
     this.cooldownMs = cooldownMs;
     this.now = now;
     this.getDiskSpace = getDiskSpace;
+    this.getStatusAnnouncement = getStatusAnnouncement;
     this.lastExecuted = new Map();
     this.inFlight = new Set();
   }
@@ -135,7 +144,7 @@ class GameCommandRouter {
     if (!action) return { matched: false };
 
     const authId = event.player.authId.toUpperCase();
-    if (!this.allowedSteamIds.has(authId)) {
+    if (!action.public && !this.allowedSteamIds.has(authId)) {
       return { matched: true, authorized: false, executed: false, trigger, authId };
     }
 
@@ -161,15 +170,18 @@ class GameCommandRouter {
       for (const step of action.steps) {
         const rcon = this.targets.get(step.target);
         if (!rcon) throw new Error(`${step.target} RCON is not configured`);
-        const output = await rcon.execute(step.command);
-        executedCommands.push(`${step.target}: ${step.command}`);
+        const command = step.statusAnnouncement
+          ? `say ${await this.getStatusAnnouncement()}`
+          : step.command;
+        const output = await rcon.execute(command);
+        executedCommands.push(`${step.target}: ${command}`);
         let announcementMatch;
         let announcement;
         if (step.confirmRecording) {
           for (let attempt = 0; attempt < 5; attempt += 1) {
             const status = await rcon.execute('status');
             executedCommands.push(`${step.target}: status`);
-            announcementMatch = String(status || '').match(RECORDING_STATUS_PATTERN);
+            announcementMatch = String(status || '').match(HLTV_RECORDING_STATUS_PATTERN);
             if (announcementMatch) break;
             if (attempt < 4) await wait(250);
           }
