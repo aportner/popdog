@@ -51,6 +51,55 @@ test('executes game config commands for an allowed Steam ID', async () => {
   assert.deepEqual(hltv, []);
 });
 
+test('executes CAL and restart commands, with aliases sharing a cooldown', async () => {
+  let now = 1000;
+  const { game, router } = harness({ cooldownMs: 3000, now: () => now });
+
+  assert.equal((await router.handle(chat('.cal'))).executed, true);
+  assert.equal((await router.handle(chat('.calot'))).executed, true);
+  assert.equal((await router.handle(chat('.ot'))).reason, 'cooldown');
+  assert.equal((await router.handle(chat('.rr'))).executed, true);
+  assert.equal((await router.handle(chat('.rr1'))).reason, 'cooldown');
+  assert.equal((await router.handle(chat('.rr3'))).executed, true);
+  now += 3001;
+  assert.equal((await router.handle(chat('.ot'))).executed, true);
+  assert.equal((await router.handle(chat('.rr1'))).executed, true);
+  assert.deepEqual(game, [
+    'exec cal.cfg',
+    'exec calot.cfg',
+    'sv_restart 1',
+    'sv_restart 3',
+    'exec calot.cfg',
+    'sv_restart 1',
+  ]);
+});
+
+test('changes to a validated map through either alias', async () => {
+  let now = 1000;
+  const { game, router } = harness({ cooldownMs: 3000, now: () => now });
+
+  assert.equal((await router.handle(chat('.map de_dust2'))).executed, true);
+  assert.equal((await router.handle(chat('.changelevel de_nuke'))).reason, 'cooldown');
+  now += 3001;
+  assert.equal((await router.handle(chat(' .CHANGELEVEL de-nuke '))).executed, true);
+  assert.deepEqual(game, ['changelevel de_dust2', 'changelevel de-nuke']);
+});
+
+test('rejects unsafe or malformed map names without sending RCON', async () => {
+  const { game, router } = harness();
+
+  for (const command of [
+    '.map',
+    '.map de_dust2; quit',
+    '.changelevel de_dust2.cfg',
+    '.map ../de_dust2',
+    `.map ${'a'.repeat(65)}`,
+  ]) {
+    assert.equal((await router.handle(chat(command))).matched, false);
+  }
+  assert.deepEqual(game, []);
+});
+
 test('starts an HLTV recording and announces it through HLTV', async () => {
   const { game, hltv, router } = harness();
 

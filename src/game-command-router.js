@@ -9,6 +9,16 @@ const STOP_RECORDING = {
   ],
 };
 
+const CAL_OVERTIME = {
+  id: 'calot',
+  steps: [{ target: 'game', command: 'exec calot.cfg' }],
+};
+
+const RESTART_ONE_SECOND = {
+  id: 'rr1',
+  steps: [{ target: 'game', command: 'sv_restart 1' }],
+};
+
 const RECORDING_STATUS_PATTERN =
   /(?:^|\r?\n)Recording to ([a-zA-Z0-9_.-]+\.dem), Length \d+(?:\.\d+)? sec\.(?:\r?\n|$)/;
 
@@ -20,6 +30,12 @@ function createCommands(recordingPrefix) {
   return new Map([
     ['.lo3', { id: 'lo3', steps: [{ target: 'game', command: 'exec lo3.cfg' }] }],
     ['.pregame', { id: 'pregame', steps: [{ target: 'game', command: 'exec pregame.cfg' }] }],
+    ['.cal', { id: 'cal', steps: [{ target: 'game', command: 'exec cal.cfg' }] }],
+    ['.calot', CAL_OVERTIME],
+    ['.ot', CAL_OVERTIME],
+    ['.rr', RESTART_ONE_SECOND],
+    ['.rr1', RESTART_ONE_SECOND],
+    ['.rr3', { id: 'rr3', steps: [{ target: 'game', command: 'sv_restart 3' }] }],
     [
       '.record',
       {
@@ -36,6 +52,24 @@ function createCommands(recordingPrefix) {
     ['.stop', STOP_RECORDING],
     ['.stoprecording', STOP_RECORDING],
   ]);
+}
+
+function resolveAction(message, commands) {
+  const trimmedMessage = message.trim();
+  const trigger = trimmedMessage.toLowerCase();
+  const exactAction = commands.get(trigger);
+  if (exactAction) return { trigger, action: exactAction };
+
+  const mapMatch = trimmedMessage.match(/^\.(?:map|changelevel)\s+([a-zA-Z0-9_-]{1,64})$/i);
+  if (!mapMatch) return { trigger, action: null };
+
+  return {
+    trigger,
+    action: {
+      id: 'changelevel',
+      steps: [{ target: 'game', command: `changelevel ${mapMatch[1]}` }],
+    },
+  };
 }
 
 class GameCommandRouter {
@@ -64,8 +98,7 @@ class GameCommandRouter {
   async handle(event) {
     if (event.type !== 'chat') return { matched: false };
 
-    const trigger = event.message.trim().toLowerCase();
-    const action = this.commands.get(trigger);
+    const { trigger, action } = resolveAction(event.message, this.commands);
     if (!action) return { matched: false };
 
     const authId = event.player.authId.toUpperCase();
