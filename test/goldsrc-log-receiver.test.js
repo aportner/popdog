@@ -20,6 +20,7 @@ test('parses GoldSrc log packets and structured chat events', () => {
     timestamp: '08/25/2026 - 12:34:56',
     message: '.lo3',
     teamOnly: false,
+    dead: false,
     player: {
       name: 'Ada',
       userId: 3,
@@ -28,6 +29,18 @@ test('parses GoldSrc log packets and structured chat events', () => {
     },
     raw: chatLine,
   });
+});
+
+test('parses dead-player chat as a command-capable chat event', () => {
+  const deadChatLine =
+    'L 08/25/2026 - 12:34:56: "Ada<3><STEAM_0:1:2><CT>" say_team ".rr" (dead)';
+
+  const event = parseLogLine(deadChatLine);
+  assert.equal(event.type, 'chat');
+  assert.equal(event.message, '.rr');
+  assert.equal(event.teamOnly, true);
+  assert.equal(event.dead, true);
+  assert.equal(event.player.authId, 'STEAM_0:1:2');
 });
 
 test('parses classic GoldSrc log framing', () => {

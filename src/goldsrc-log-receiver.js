@@ -10,7 +10,7 @@ const INFO_REQUEST = Buffer.concat([
   Buffer.from('Source Engine Query\0', 'ascii'),
 ]);
 const TIMESTAMP_PATTERN = /^L (?<timestamp>\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}:\d{2}): (?<message>.*)$/;
-const CHAT_PATTERN = /^"(?<name>.*)<(?<userId>\d+)><(?<authId>[^>]*)><(?<team>[^>]*)>" (?<verb>say|say_team) "(?<chat>.*)"$/;
+const CHAT_PATTERN = /^"(?<name>.*)<(?<userId>\d+)><(?<authId>[^>]*)><(?<team>[^>]*)>" (?<verb>say|say_team) "(?<chat>.*)"(?<dead> \(dead\))?$/;
 
 function cleanText(value) {
   return value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim();
@@ -61,6 +61,7 @@ function parseLogLine(raw) {
     timestamp,
     message: chatMatch.groups.chat,
     teamOnly: chatMatch.groups.verb === 'say_team',
+    dead: Boolean(chatMatch.groups.dead),
     player: {
       name: chatMatch.groups.name,
       userId: Number(chatMatch.groups.userId),

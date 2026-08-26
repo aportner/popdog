@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { GameCommandRouter } = require('../src/game-command-router');
+const { parseLogLine } = require('../src/goldsrc-log-receiver');
 
 function chat(message, authId = 'STEAM_0:1:3465') {
   return {
@@ -49,6 +50,16 @@ test('executes game config commands for an allowed Steam ID', async () => {
   assert.equal((await router.handle(chat('  .PREGAME  '))).executed, true);
   assert.deepEqual(game, ['exec lo3.cfg', 'exec pregame.cfg']);
   assert.deepEqual(hltv, []);
+});
+
+test('executes commands from an allowed dead player', async () => {
+  const { game, router } = harness({ allowedSteamIds: ['STEAM_0:1:2'] });
+  const event = parseLogLine(
+    'L 08/25/2026 - 12:34:56: "Ada<3><STEAM_0:1:2><CT>" say ".cal" (dead)',
+  );
+
+  assert.equal((await router.handle(event)).executed, true);
+  assert.deepEqual(game, ['exec cal.cfg']);
 });
 
 test('executes CAL and restart commands, with aliases sharing a cooldown', async () => {

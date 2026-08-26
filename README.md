@@ -72,7 +72,7 @@ When the processes run on separate hosts, allow inbound UDP `27500` to popdog
 from only the ReHLDS host. Set `GOLDSRC_LOG_DEBUG=true` temporarily to print
 parsed events to stdout. Nothing is posted to Discord. Player chat is already
 emitted internally as a structured `chat` event containing the name, user ID,
-Steam ID, team, message, and whether it was team-only.
+Steam ID, team, message, and whether it was team-only or sent while dead.
 
 Authorized players can run exact-match chat commands:
 
