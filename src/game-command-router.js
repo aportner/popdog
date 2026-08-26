@@ -60,6 +60,20 @@ function resolveAction(message, commands) {
   const exactAction = commands.get(trigger);
   if (exactAction) return { trigger, action: exactAction };
 
+  const setScoreMatch = trimmedMessage.match(/^\.setscore\s+([+-]?\d+)\s+([+-]?\d+)$/i);
+  if (setScoreMatch) {
+    const scores = setScoreMatch.slice(1).map(Number);
+    if (scores.every((score) => Number.isInteger(score) && score >= -2147483648 && score <= 2147483647)) {
+      return {
+        trigger,
+        action: {
+          id: 'setscore',
+          steps: [{ target: 'game', command: `setscore ${scores[0]} ${scores[1]}` }],
+        },
+      };
+    }
+  }
+
   const mapMatch = trimmedMessage.match(/^\.(?:map|changelevel)\s+([a-zA-Z0-9_-]{1,64})$/i);
   if (!mapMatch) return { trigger, action: null };
 

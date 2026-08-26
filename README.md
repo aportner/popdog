@@ -82,6 +82,7 @@ Authorized players can run exact-match chat commands:
 - `.calot` and `.ot` execute `calot.cfg`
 - `.rr` and `.rr1` run `sv_restart 1`; `.rr3` runs `sv_restart 3`
 - `.map <map>` and `.changelevel <map>` change to a validated map name
+- `.setscore <ct> <t>` sets the CT and Terrorist scores to signed 32-bit integers
 - `.record` runs `record <prefix>`, confirms the generated filename through
   HLTV's `status`, then announces `Start recording to <filename>` through HLTV
   chat with the available recording disk space appended
@@ -90,9 +91,9 @@ Authorized players can run exact-match chat commands:
   `stop` command)
 
 Configure the comma-separated Steam2 allow-list with
-`GOLDSRC_COMMAND_STEAM_IDS`. Commands are mapped to fixed RCON strings; the map
-commands accept only letters, numbers, underscores, and hyphens in their map
-name. Duplicate triggers have a three-second cooldown.
+`GOLDSRC_COMMAND_STEAM_IDS`. Commands are mapped to fixed RCON strings; dynamic
+map names and score values are strictly validated before being sent. Duplicate
+triggers have a three-second cooldown.
 
 The recording prefix defaults to `match`, producing HLTV names such as
 `match-date-map.dem`. Override it with `HLTV_RECORDING_PREFIX`; only letters,
