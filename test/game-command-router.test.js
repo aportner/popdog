@@ -85,6 +85,29 @@ test('executes CAL and restart commands, with aliases sharing a cooldown', async
   ]);
 });
 
+test('swaps teams and forces round results with shared alias cooldowns', async () => {
+  let now = 1000;
+  const { game, router } = harness({ cooldownMs: 3000, now: () => now });
+
+  assert.equal((await router.handle(chat('.swap'))).executed, true);
+  assert.equal((await router.handle(chat('.swapteams'))).reason, 'cooldown');
+  assert.equal((await router.handle(chat('.draw'))).executed, true);
+  assert.equal((await router.handle(chat('.ctwin'))).reason, 'cooldown');
+  now += 3001;
+  assert.equal((await router.handle(chat(' .SWAPTEAMS '))).executed, true);
+  assert.equal((await router.handle(chat('.ctwin'))).executed, true);
+  assert.equal((await router.handle(chat('.twin'))).reason, 'cooldown');
+  now += 3001;
+  assert.equal((await router.handle(chat('.twin'))).executed, true);
+  assert.deepEqual(game, [
+    'swapteams 1',
+    'endround',
+    'swapteams 1',
+    'endround CT',
+    'endround T',
+  ]);
+});
+
 test('changes to a validated map through either alias', async () => {
   let now = 1000;
   const { game, router } = harness({ cooldownMs: 3000, now: () => now });

@@ -81,6 +81,8 @@ Authorized players can run exact-match chat commands:
 - `.cal` executes `cal.cfg`
 - `.calot` and `.ot` execute `calot.cfg`
 - `.rr` and `.rr1` run `sv_restart 1`; `.rr3` runs `sv_restart 3`
+- `.swap` and `.swapteams` swap teams and restart after one second
+- `.draw`, `.ctwin`, and `.twin` end the round as a draw, CT win, or T win
 - `.map <map>` and `.changelevel <map>` change to a validated map name
 - `.setscore <ct> <t>` and `.score <ct> <t>` set the CT and Terrorist scores
   to signed 32-bit integers

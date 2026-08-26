@@ -19,6 +19,18 @@ const RESTART_ONE_SECOND = {
   steps: [{ target: 'game', command: 'sv_restart 1' }],
 };
 
+const SWAP_TEAMS = {
+  id: 'swapteams',
+  steps: [{ target: 'game', command: 'swapteams 1' }],
+};
+
+function endRound(command) {
+  return {
+    id: 'endround',
+    steps: [{ target: 'game', command }],
+  };
+}
+
 const RECORDING_STATUS_PATTERN =
   /(?:^|\r?\n)Recording to ([a-zA-Z0-9_.-]+\.dem), Length \d+(?:\.\d+)? sec\.(?:\r?\n|$)/;
 
@@ -36,6 +48,11 @@ function createCommands(recordingPrefix) {
     ['.rr', RESTART_ONE_SECOND],
     ['.rr1', RESTART_ONE_SECOND],
     ['.rr3', { id: 'rr3', steps: [{ target: 'game', command: 'sv_restart 3' }] }],
+    ['.swap', SWAP_TEAMS],
+    ['.swapteams', SWAP_TEAMS],
+    ['.draw', endRound('endround')],
+    ['.ctwin', endRound('endround CT')],
+    ['.twin', endRound('endround T')],
     [
       '.record',
       {
