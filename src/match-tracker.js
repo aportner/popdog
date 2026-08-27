@@ -166,7 +166,7 @@ class MatchTracker {
         return {
           changed: true,
           halftime: true,
-          announcement: `Halftime: CT ${ct}-${t} T. Swap sides and use .lo3.`,
+          announcement: `Halftime: CT ${ct}-${t} T.${this.matchPointSuffix({ ct, t })} Swap sides and use .lo3.`,
         };
       }
       if (this.state.phase === 'halftime') {
@@ -230,9 +230,19 @@ class MatchTracker {
 
   scoreAnnouncement({ corrected = false, finalRound = false } = {}) {
     const score = this.sideScore();
-    let message = `${corrected ? 'Score corrected: ' : ''}CT ${score.ct}-${score.t} T.`;
+    let message = corrected
+      ? `Score corrected: CT ${score.ct}-${score.t} T.`
+      : `Round over. Score: CT ${score.ct}-${score.t} T.`;
+    message += this.matchPointSuffix(score);
     if (finalRound) message += ' Next round is the final round of the half.';
     return message;
+  }
+
+  matchPointSuffix(score) {
+    const matchPoint = this.state.maxRoundsPerHalf;
+    return (score.ct === matchPoint) !== (score.t === matchPoint)
+      ? ' Match point.'
+      : '';
   }
 
   statusText() {

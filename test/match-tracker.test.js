@@ -7,7 +7,7 @@ test('tracks an MR12 match across halftime using current CT and T sides', () => 
   tracker.startLo3('de_dust2');
 
   assert.equal(tracker.applyRoundResult({ ct: 6, t: 5 }).announcement,
-    'CT 6-5 T. Next round is the final round of the half.');
+    'Round over. Score: CT 6-5 T. Next round is the final round of the half.');
   const halftime = tracker.applyRoundResult({ ct: 7, t: 5 });
   assert.equal(halftime.halftime, true);
   assert.equal(halftime.announcement, 'Halftime: CT 7-5 T. Swap sides and use .lo3.');
@@ -18,7 +18,7 @@ test('tracks an MR12 match across halftime using current CT and T sides', () => 
   assert.equal(tracker.snapshot().phase, 'second_half');
   assert.equal(tracker.statusText(), 'Match: CT 5-7 T (second half)');
   assert.equal(tracker.applyRoundResult({ ct: 3, t: 4 }).announcement,
-    'CT 8-11 T.');
+    'Round over. Score: CT 8-11 T.');
   const final = tracker.applyRoundResult({ ct: 3, t: 6 });
   assert.equal(final.complete, true);
   assert.equal(final.announcement, 'Final: CT 8-13 T.');
@@ -76,6 +76,26 @@ test('cumulative scores are idempotent and a regulation tie remains active', () 
   assert.equal(tied.tied, true);
   assert.equal(tracker.snapshot().phase, 'tied');
   assert.equal(tracker.statusText(), 'Match: CT 12-12 T (tied)');
+});
+
+test('announces match point when exactly one side reaches MR12', () => {
+  const halftimeMatchPoint = new MatchTracker();
+  halftimeMatchPoint.startLo3('de_nuke');
+  const halftime = halftimeMatchPoint.applyRoundResult({ ct: 12, t: 0 });
+  assert.equal(
+    halftime.announcement,
+    'Halftime: CT 12-0 T. Match point. Swap sides and use .lo3.',
+  );
+
+  const secondHalfMatchPoint = new MatchTracker();
+  secondHalfMatchPoint.startLo3('de_nuke');
+  secondHalfMatchPoint.applyRoundResult({ ct: 6, t: 6 });
+  secondHalfMatchPoint.startLo3('de_nuke');
+  const round = secondHalfMatchPoint.applyRoundResult({ ct: 5, t: 6 });
+  assert.equal(
+    round.announcement,
+    'Round over. Score: CT 11-12 T. Match point. Next round is the final round of the half.',
+  );
 });
 
 test('map changes discard provisional matches but suspend checkpoints', () => {
