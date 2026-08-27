@@ -118,11 +118,11 @@ filesystem. A failed disk check is logged but does not prevent recording.
 or restarts the current tracked half. Repeated LO3s discard only the current
 half's provisional server score. At the configured MR total (12 by default),
 Popdog checkpoints the first half; the next `.lo3` starts half two with logical
-Team A and Team B mapped to their swapped sides.
+CT and T totals reassigned to the players' new sides.
 
 Popdog parses ReGameDLL's cumulative round-result logs and announces the
-logical match score after each change. It announces the final round of each
-half, checkpoints halftime, ends regulation when a logical team reaches MR+1,
+current CT-versus-T score after each change. It announces the final round of
+each half, checkpoints halftime, ends regulation when either side reaches MR+1,
 and keeps a 12-12 match active for overtime. Completed matches automatically
 return to pregame. `.pregame` stops recording and suspends an unfinished match;
 the next `.lo3` resumes its phase from a fresh 0-0 server half.

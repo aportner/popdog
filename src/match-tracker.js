@@ -87,7 +87,7 @@ class MatchTracker {
       phase: this.state.phase,
       announcement:
         total > 0
-          ? `LO3 restarted the current half; provisional score ${discarded.ct}-${discarded.t} was discarded.`
+          ? `LO3 restarted the current half; provisional score CT ${discarded.ct}-${discarded.t} T was discarded.`
           : null,
     };
   }
@@ -149,7 +149,7 @@ class MatchTracker {
       return {
         changed: true,
         suspended: true,
-        announcement: `Match tracking suspended: server half score ${ct}-${t} exceeds MR${max}.`,
+        announcement: `Match tracking suspended: server half score CT ${ct}-${t} T exceeds MR${max}.`,
       };
     }
     if (ct === this.state.currentHalf.ct && t === this.state.currentHalf.t) {
@@ -166,7 +166,7 @@ class MatchTracker {
         return {
           changed: true,
           halftime: true,
-          announcement: `Halftime: Team A ${ct}-${t} Team B. Swap sides and use .lo3.`,
+          announcement: `Halftime: CT ${ct}-${t} T. Swap sides and use .lo3.`,
         };
       }
       if (this.state.phase === 'halftime') {
@@ -179,16 +179,16 @@ class MatchTracker {
       };
     }
 
-    const logical = this.logicalScore();
+    const score = this.sideScore();
     const target = max + 1;
-    if (logical.teamA >= target || logical.teamB >= target) {
+    if (score.ct >= target || score.t >= target) {
       const completed = {
         map: this.state.map,
-        teamA: logical.teamA,
-        teamB: logical.teamB,
+        ct: score.ct,
+        t: score.t,
         completedAt: new Date().toISOString(),
       };
-      const announcement = `Final: Team A ${logical.teamA}-${logical.teamB} Team B.`;
+      const announcement = `Final: CT ${score.ct}-${score.t} T.`;
       const map = this.state.map;
       this.state = freshState(max);
       this.state.map = map;
@@ -196,12 +196,12 @@ class MatchTracker {
       return { changed: true, complete: true, announcement, completed };
     }
 
-    if (halfTotal === max && logical.teamA === logical.teamB) {
+    if (halfTotal === max && score.ct === score.t) {
       this.state.phase = 'tied';
       return {
         changed: true,
         tied: true,
-        announcement: `Regulation tied ${logical.teamA}-${logical.teamB}. Recording continues for overtime.`,
+        announcement: `Regulation tied CT ${score.ct}-${score.t} T. Recording continues for overtime.`,
       };
     }
 
@@ -211,31 +211,35 @@ class MatchTracker {
     };
   }
 
-  logicalScore() {
+  sideScore() {
     if (!this.state.firstHalf) {
-      return { teamA: this.state.currentHalf.ct, teamB: this.state.currentHalf.t };
+      return { ...this.state.currentHalf };
     }
-    if (['second_half', 'tied'].includes(this.state.phase)) {
+    const scoreOnSwappedSides =
+      ['second_half', 'tied'].includes(this.state.phase) ||
+      (this.state.phase === 'suspended' &&
+        ['second_half', 'tied'].includes(this.state.resumePhase));
+    if (scoreOnSwappedSides) {
       return {
-        teamA: this.state.firstHalf.ct + this.state.currentHalf.t,
-        teamB: this.state.firstHalf.t + this.state.currentHalf.ct,
+        ct: this.state.firstHalf.t + this.state.currentHalf.ct,
+        t: this.state.firstHalf.ct + this.state.currentHalf.t,
       };
     }
-    return { teamA: this.state.firstHalf.ct, teamB: this.state.firstHalf.t };
+    return { ...this.state.firstHalf };
   }
 
   scoreAnnouncement({ corrected = false, finalRound = false } = {}) {
-    const logical = this.logicalScore();
-    let message = `${corrected ? 'Score corrected: ' : ''}Team A ${logical.teamA}-${logical.teamB} Team B.`;
+    const score = this.sideScore();
+    let message = `${corrected ? 'Score corrected: ' : ''}CT ${score.ct}-${score.t} T.`;
     if (finalRound) message += ' Next round is the final round of the half.';
     return message;
   }
 
   statusText() {
     if (this.state.phase === 'pregame') return null;
-    const logical = this.logicalScore();
+    const score = this.sideScore();
     const phase = this.state.phase.replace('_', ' ');
-    return `Match: Team A ${logical.teamA}-${logical.teamB} Team B (${phase})`;
+    return `Match: CT ${score.ct}-${score.t} T (${phase})`;
   }
 }
 
