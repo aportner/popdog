@@ -1,7 +1,12 @@
 const assert = require('node:assert/strict');
 const dgram = require('node:dgram');
 const test = require('node:test');
-const { GoldSrcRcon, sanitizeSayText } = require('../src/goldsrc-rcon');
+const {
+  GoldSrcRcon,
+  popdogSayCommand,
+  sanitizeSayText,
+  sendPopdogSay,
+} = require('../src/goldsrc-rcon');
 
 const header = Buffer.from([0xff, 0xff, 0xff, 0xff]);
 
@@ -99,4 +104,22 @@ test('can treat an HLTV command with no output as successfully sent', async (t) 
 
 test('removes console-command delimiters from chat text', () => {
   assert.equal(sanitizeSayText('hello"; quit\nworld\\'), 'hello quitworld');
+});
+
+test('prefixes and safely sends Popdog chat through one RCON helper', async () => {
+  const commands = [];
+  const rcon = {
+    execute: async (command) => {
+      commands.push(command);
+      return 'sent';
+    },
+  };
+
+  assert.equal(popdogSayCommand('hello'), 'say "[PopDog] hello"');
+  assert.deepEqual(await sendPopdogSay(rcon, 'hello"; quit'), {
+    command: 'say "[PopDog] hello quit"',
+    output: 'sent',
+  });
+  assert.deepEqual(commands, ['say "[PopDog] hello quit"']);
+  assert.throws(() => popdogSayCommand(' ; " '), /cannot be empty/);
 });

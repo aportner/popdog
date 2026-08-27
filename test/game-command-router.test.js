@@ -65,13 +65,13 @@ test('executes commands from an allowed dead player', async () => {
 test('allows any player to request the read-only server status', async () => {
   const { game, hltv, router } = harness({
     getStatusAnnouncement: async () =>
-      '[Popdog] de_dust2 | 10/12 players | HLTV: recording',
+      'de_dust2 | 10/12 players | HLTV: recording',
   });
 
   const result = await router.handle(chat('.status', 'STEAM_0:0:999'));
   assert.equal(result.authorized, true);
   assert.equal(result.executed, true);
-  assert.deepEqual(game, ['say [Popdog] de_dust2 | 10/12 players | HLTV: recording']);
+  assert.deepEqual(game, ['say "[PopDog] de_dust2 | 10/12 players | HLTV: recording"']);
   assert.deepEqual(hltv, []);
 });
 
@@ -183,7 +183,7 @@ test('starts an HLTV recording and announces it through HLTV', async () => {
   assert.deepEqual(hltv, [
     'record scrim',
     'status',
-    'say Start recording to scrim-2608261937-aim_map_deagle.dem. (42.5 GiB free)',
+    'say "[PopDog] Start recording to scrim-2608261937-aim_map_deagle.dem. (42.5 GiB free)"',
   ]);
   assert.deepEqual(game, []);
 });
@@ -195,7 +195,7 @@ test('still announces a recording when the disk-space check has no result', asyn
   assert.deepEqual(hltv, [
     'record scrim',
     'status',
-    'say Start recording to scrim-2608261937-aim_map_deagle.dem.',
+    'say "[PopDog] Start recording to scrim-2608261937-aim_map_deagle.dem."',
   ]);
 });
 
@@ -209,9 +209,9 @@ test('both stop aliases stop recording without stopping HLTV', async () => {
   assert.equal((await router.handle(chat('.stoprecording'))).executed, true);
   assert.deepEqual(hltv, [
     'stoprecording',
-    'say Completed demo scrim-2608261937-aim_map_deagle.dem.',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
     'stoprecording',
-    'say Completed demo scrim-2608261937-aim_map_deagle.dem.',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
   ]);
   assert.equal(hltv.includes('stop'), false);
 });

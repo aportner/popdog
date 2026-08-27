@@ -1,4 +1,5 @@
 const { HLTV_RECORDING_STATUS_PATTERN } = require('./match-status');
+const { sendPopdogSay } = require('./goldsrc-rcon');
 
 const STOP_RECORDING = {
   id: 'stoprecording',
@@ -121,7 +122,7 @@ class GameCommandRouter {
     cooldownMs = 3000,
     now = Date.now,
     getDiskSpace = async () => null,
-    getStatusAnnouncement = async () => '[Popdog] Status unavailable',
+    getStatusAnnouncement = async () => 'Status unavailable',
   }) {
     this.targets = new Map([
       ['game', gameRcon],
@@ -170,10 +171,15 @@ class GameCommandRouter {
       for (const step of action.steps) {
         const rcon = this.targets.get(step.target);
         if (!rcon) throw new Error(`${step.target} RCON is not configured`);
-        const command = step.statusAnnouncement
-          ? `say ${await this.getStatusAnnouncement()}`
-          : step.command;
-        const output = await rcon.execute(command);
+        let command = step.command;
+        let output;
+        if (step.statusAnnouncement) {
+          const sent = await sendPopdogSay(rcon, await this.getStatusAnnouncement());
+          command = sent.command;
+          output = sent.output;
+        } else {
+          output = await rcon.execute(command);
+        }
         executedCommands.push(`${step.target}: ${command}`);
         let announcementMatch;
         let announcement;
@@ -202,9 +208,8 @@ class GameCommandRouter {
             const diskSpace = await this.getDiskSpace();
             if (diskSpace) announcement += ` (${diskSpace} free)`;
           }
-          const sayCommand = `say ${announcement}`;
-          await rcon.execute(sayCommand);
-          executedCommands.push(`${step.target}: ${sayCommand}`);
+          const sent = await sendPopdogSay(rcon, announcement);
+          executedCommands.push(`${step.target}: ${sent.command}`);
         }
       }
       this.lastExecuted.set(action.id, now);

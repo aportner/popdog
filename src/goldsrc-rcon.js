@@ -29,6 +29,17 @@ function sanitizeSayText(value) {
     .trim();
 }
 
+function popdogSayCommand(value) {
+  const text = sanitizeSayText(value);
+  if (!text) throw new Error('RCON say message cannot be empty');
+  return `say "[PopDog] ${text}"`;
+}
+
+async function sendPopdogSay(rcon, value) {
+  const command = popdogSayCommand(value);
+  return { command, output: await rcon.execute(command) };
+}
+
 class GoldSrcRcon {
   constructor({
     host,
@@ -120,4 +131,10 @@ class GoldSrcRcon {
   }
 }
 
-module.exports = { GoldSrcRcon, responseText, sanitizeSayText };
+module.exports = {
+  GoldSrcRcon,
+  popdogSayCommand,
+  responseText,
+  sanitizeSayText,
+  sendPopdogSay,
+};

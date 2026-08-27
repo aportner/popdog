@@ -15,7 +15,7 @@ function formatMatchStatus({ gameInfo, hltvStatus, hltvAvailable = true }) {
       : 'not recording';
   }
 
-  return `[Popdog] ${map} | ${players}/${maxPlayers} players | HLTV: ${recording}`;
+  return `${map} | ${players}/${maxPlayers} players | HLTV: ${recording}`;
 }
 
 module.exports = { formatMatchStatus, HLTV_RECORDING_STATUS_PATTERN };

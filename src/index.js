@@ -13,7 +13,7 @@ const { availableBytes, formatBytes } = require('./disk-space');
 const { GameCommandRouter } = require('./game-command-router');
 const { GoldSrcLogReceiver } = require('./goldsrc-log-receiver');
 const { GoldSrcQuery } = require('./goldsrc-query');
-const { GoldSrcRcon, sanitizeSayText } = require('./goldsrc-rcon');
+const { GoldSrcRcon, sanitizeSayText, sendPopdogSay } = require('./goldsrc-rcon');
 const { registerLogTarget, unregisterLogTarget } = require('./log-registration');
 const { createMapPoll } = require('./map-poll');
 const { formatMatchStatus } = require('./match-status');
@@ -229,7 +229,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
-      await rcon.execute(`say "[Discord] ${sender}: ${message}"`);
+      await sendPopdogSay(rcon, `[Discord] ${sender}: ${message}`);
       await interaction.editReply('Message sent to the CS 1.6 server.');
     } catch (error) {
       console.error('Game server say command failed:', error);
