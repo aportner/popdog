@@ -3,7 +3,7 @@ const { sanitizeSayText } = require('./goldsrc-rcon');
 const HLTV_RECORDING_STATUS_PATTERN =
   /(?:^|\r?\n)Recording to ([a-zA-Z0-9_.-]+\.dem), Length \d+(?:\.\d+)? sec\.(?:\r?\n|$)/;
 
-function formatMatchStatus({ gameInfo, hltvStatus, hltvAvailable = true }) {
+function formatMatchStatus({ gameInfo, hltvStatus, hltvAvailable = true, matchStatus = null }) {
   const map = sanitizeSayText(String(gameInfo?.map || 'unknown')) || 'unknown';
   const players = Number.isInteger(gameInfo?.players) ? gameInfo.players : '?';
   const maxPlayers = Number.isInteger(gameInfo?.maxPlayers) ? gameInfo.maxPlayers : '?';
@@ -15,7 +15,9 @@ function formatMatchStatus({ gameInfo, hltvStatus, hltvAvailable = true }) {
       : 'not recording';
   }
 
-  return `${map} | ${players}/${maxPlayers} players | HLTV: ${recording}`;
+  const parts = [`${map} | ${players}/${maxPlayers} players`, `HLTV: ${recording}`];
+  if (matchStatus) parts.push(matchStatus);
+  return parts.join(' | ');
 }
 
 module.exports = { formatMatchStatus, HLTV_RECORDING_STATUS_PATTERN };

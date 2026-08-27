@@ -17,6 +17,9 @@ const { GoldSrcRcon, sanitizeSayText, sendPopdogSay } = require('./goldsrc-rcon'
 const { registerLogTarget, unregisterLogTarget } = require('./log-registration');
 const { createMapPoll } = require('./map-poll');
 const { formatMatchStatus } = require('./match-status');
+const { MatchStateStore } = require('./match-state-store');
+const { MatchTracker, normalizeState } = require('./match-tracker');
+const { RecordingGuard } = require('./recording-guard');
 
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -42,6 +45,41 @@ const hltvRcon = new GoldSrcRcon({
 });
 let registeredLogTarget = false;
 let shuttingDown = false;
+const matchStore = new MatchStateStore(config.match.statePath);
+const matchTracker = new MatchTracker({ maxRoundsPerHalf: config.match.maxRoundsPerHalf });
+let matchWork = Promise.resolve();
+
+function serializeMatchWork(task) {
+  const run = matchWork.then(task);
+  matchWork = run.catch((error) => console.error('Match lifecycle operation failed:', error));
+  return run;
+}
+
+async function saveMatchState() {
+  await matchStore.save(matchTracker.snapshot());
+}
+
+async function stopRecordingAndAnnounce() {
+  const output = await hltvRcon.execute('stoprecording');
+  const completed = String(output || '').match(/^Completed demo [a-zA-Z0-9_.-]+\.dem\.$/);
+  if (completed) await sendPopdogSay(hltvRcon, completed[0]);
+}
+
+const recordingGuard = new RecordingGuard({
+  gameServer,
+  hltvRcon,
+  diskPath: config.hltv.diskPath,
+  minimumPlayers: config.hltv.minimumRecordingPlayers,
+  lowPlayerGraceMs: config.hltv.lowPlayerGraceSeconds * 1000,
+  minimumFreeBytes: config.hltv.minimumFreeGiB * 1024 ** 3,
+  intervalMs: config.hltv.guardIntervalSeconds * 1000,
+  onStop: async (reason) => {
+    await sendPopdogSay(rcon, reason);
+    await stopRecordingAndAnnounce();
+  },
+  onError: (error) => console.warn('Recording guard check failed:', error.message),
+});
+
 const gameCommands = new GameCommandRouter({
   gameRcon: rcon,
   hltvRcon,
@@ -64,8 +102,34 @@ const gameCommands = new GameCommandRouter({
       gameInfo: gameResult.status === 'fulfilled' ? gameResult.value : null,
       hltvStatus: hltvResult.status === 'fulfilled' ? hltvResult.value : null,
       hltvAvailable: hltvResult.status === 'fulfilled',
+      matchStatus: matchTracker.statusText(),
     });
   },
+  onActionExecuted: ({ id, metadata }) =>
+    serializeMatchWork(async () => {
+      let result = { changed: false };
+      if (id === 'lo3') {
+        let map = matchTracker.snapshot().map;
+        try {
+          map = (await gameServer.info()).map || map;
+        } catch (error) {
+          console.warn('Could not query the map while starting LO3:', error.message);
+        }
+        result = matchTracker.startLo3(map);
+      } else if (id === 'pregame') {
+        result = matchTracker.enterPregame();
+      } else if (id === 'setscore') {
+        result = matchTracker.setScore(metadata.ct, metadata.t);
+      } else if (id === 'matchreset') {
+        result = matchTracker.reset();
+      } else if (id === 'changelevel') {
+        result = matchTracker.changeMap(metadata.map);
+      }
+
+      if (result.changed) await saveMatchState();
+      if (id === 'changelevel') return [];
+      return result.announcement ? [result.announcement] : [];
+    }),
 });
 
 gameLogs.on('socketError', (error) => {
@@ -95,6 +159,27 @@ gameLogs.on('chat', (event) => {
     .catch((error) => {
       console.error(`In-game command from ${event.player.authId} failed:`, error);
     });
+});
+
+gameLogs.on('event', (event) => {
+  if (!['round_result', 'map_start'].includes(event.type)) return;
+  void serializeMatchWork(async () => {
+    const result =
+      event.type === 'round_result'
+        ? matchTracker.applyRoundResult(event)
+        : matchTracker.changeMap(event.map);
+    if (!result.changed) return;
+
+    await saveMatchState();
+    if (result.announcement) await sendPopdogSay(rcon, result.announcement);
+    if (result.complete || event.type === 'map_start') {
+      try {
+        await stopRecordingAndAnnounce();
+      } catch (error) {
+        console.warn('Could not stop HLTV recording:', error.message);
+      }
+    }
+  });
 });
 
 function canControlServer(interaction) {
@@ -240,7 +325,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 async function start() {
   try {
+    const savedMatchState = await matchStore.load();
+    matchTracker.state = normalizeState(savedMatchState, config.match.maxRoundsPerHalf);
+    if (savedMatchState) console.log(`Loaded persisted match state (${matchTracker.state.phase})`);
+
     await gameLogs.start();
+    recordingGuard.start();
     console.log(
       `Listening for ReHLDS logs on ${config.gameLogs.bindHost}:${config.gameLogs.port}/udp ` +
         `(allowing ${config.gameLogs.allowedHost})`,
@@ -305,6 +395,7 @@ async function shutdown(signal) {
   }
 
   gameLogs.close();
+  recordingGuard.close();
   client.destroy();
 }
 

@@ -43,6 +43,28 @@ test('parses dead-player chat as a command-capable chat event', () => {
   assert.equal(event.player.authId, 'STEAM_0:1:2');
 });
 
+test('parses cumulative round results and map starts', () => {
+  const resultLine =
+    'L 08/27/2026 - 15:22:38: Team "TERRORIST" triggered "Hostages_Not_Rescued" (CT "0") (T "1")';
+  assert.deepEqual(parseLogLine(resultLine), {
+    type: 'round_result',
+    timestamp: '08/27/2026 - 15:22:38',
+    winner: 'TERRORIST',
+    reason: 'Hostages_Not_Rescued',
+    ct: 0,
+    t: 1,
+    raw: resultLine,
+  });
+
+  const mapLine = 'L 08/27/2026 - 15:23:00: Started map "de_nuke" (CRC "123")';
+  assert.deepEqual(parseLogLine(mapLine), {
+    type: 'map_start',
+    timestamp: '08/27/2026 - 15:23:00',
+    map: 'de_nuke',
+    raw: mapLine,
+  });
+});
+
 test('parses classic GoldSrc log framing', () => {
   const packet = Buffer.concat([
     Buffer.from([0xff, 0xff, 0xff, 0xff]),

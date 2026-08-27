@@ -83,6 +83,11 @@ function loadConfig() {
     gameCommands: {
       allowedSteamIds: steamIds('GOLDSRC_COMMAND_STEAM_IDS'),
     },
+    match: {
+      maxRoundsPerHalf: integer('MATCH_MAX_ROUNDS_PER_HALF', 12, 1, 30),
+      statePath:
+        process.env.MATCH_STATE_PATH?.trim() || path.join(process.cwd(), 'data', 'match-state.json'),
+    },
     hltv: {
       host: process.env.HLTV_HOST?.trim() || gameServerHost,
       port: integer('HLTV_PORT', 27020, 1, 65535),
@@ -90,6 +95,10 @@ function loadConfig() {
       timeoutMs: integer('HLTV_RCON_TIMEOUT_MS', 2500, 250, 30_000),
       recordingPrefix: safeToken('HLTV_RECORDING_PREFIX', 'match'),
       diskPath: process.env.HLTV_DISK_PATH?.trim() || path.parse(process.cwd()).root,
+      minimumFreeGiB: integer('HLTV_MIN_FREE_GIB', 5, 0, 10_000),
+      minimumRecordingPlayers: integer('HLTV_MIN_RECORDING_PLAYERS', 3, 0, 32),
+      lowPlayerGraceSeconds: integer('HLTV_LOW_PLAYER_GRACE_SECONDS', 300, 0, 86_400),
+      guardIntervalSeconds: integer('HLTV_GUARD_INTERVAL_SECONDS', 60, 10, 3600),
     },
   };
 }

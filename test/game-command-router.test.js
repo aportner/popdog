@@ -49,7 +49,13 @@ test('executes game config commands for an allowed Steam ID', async () => {
   assert.equal((await router.handle(chat('.lo3'))).executed, true);
   assert.equal((await router.handle(chat('  .PREGAME  '))).executed, true);
   assert.deepEqual(game, ['exec lo3.cfg', 'exec pregame.cfg']);
-  assert.deepEqual(hltv, []);
+  assert.deepEqual(hltv, [
+    'record scrim',
+    'status',
+    'say "[PopDog] Start recording to scrim-2608261937-aim_map_deagle.dem. (42.5 GiB free)"',
+    'stoprecording',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
+  ]);
 });
 
 test('executes commands from an allowed dead player', async () => {
@@ -123,13 +129,50 @@ test('swaps teams and forces round results with shared alias cooldowns', async (
 
 test('changes to a validated map through either alias', async () => {
   let now = 1000;
-  const { game, router } = harness({ cooldownMs: 3000, now: () => now });
+  const { game, hltv, router } = harness({ cooldownMs: 3000, now: () => now });
 
   assert.equal((await router.handle(chat('.map de_dust2'))).executed, true);
   assert.equal((await router.handle(chat('.changelevel de_nuke'))).reason, 'cooldown');
   now += 3001;
   assert.equal((await router.handle(chat(' .CHANGELEVEL de-nuke '))).executed, true);
   assert.deepEqual(game, ['changelevel de_dust2', 'changelevel de-nuke']);
+  assert.deepEqual(hltv, [
+    'stoprecording',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
+    'stoprecording',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
+  ]);
+});
+
+test('runs lifecycle callbacks only after all RCON steps complete', async () => {
+  const timeline = [];
+  const router = new GameCommandRouter({
+    gameRcon: { execute: async (command) => timeline.push(`game:${command}`) },
+    hltvRcon: {
+      execute: async (command) => {
+        timeline.push(`hltv:${command}`);
+        if (command === 'status') {
+          return 'Recording to match-2608271536-de_dust2.dem, Length 1.0 sec.';
+        }
+        return '';
+      },
+    },
+    allowedSteamIds: ['STEAM_0:1:3465'],
+    getDiskSpace: async () => null,
+    onActionExecuted: async ({ id }) => {
+      timeline.push(`lifecycle:${id}`);
+      return [];
+    },
+  });
+
+  await router.handle(chat('.lo3'));
+  assert.deepEqual(timeline, [
+    'hltv:record match',
+    'hltv:status',
+    'hltv:say "[PopDog] Start recording to match-2608271536-de_dust2.dem."',
+    'game:exec lo3.cfg',
+    'lifecycle:lo3',
+  ]);
 });
 
 test('rejects unsafe or malformed map names without sending RCON', async () => {
@@ -216,6 +259,23 @@ test('both stop aliases stop recording without stopping HLTV', async () => {
   assert.equal(hltv.includes('stop'), false);
 });
 
+test('match reset abandons the match and stops its recording', async () => {
+  const lifecycle = [];
+  const { hltv, router } = harness({
+    onActionExecuted: async ({ id }) => {
+      lifecycle.push(id);
+      return [];
+    },
+  });
+
+  assert.equal((await router.handle(chat('.matchreset'))).executed, true);
+  assert.deepEqual(hltv, [
+    'stoprecording',
+    'say "[PopDog] Completed demo scrim-2608261937-aim_map_deagle.dem."',
+  ]);
+  assert.deepEqual(lifecycle, ['matchreset']);
+});
+
 test('does not forward unexpected HLTV output into game chat', async () => {
   const hltv = [];
   const router = new GameCommandRouter({
@@ -257,10 +317,10 @@ test('ignores unknown text and suppresses immediate duplicate execution', async 
     now: () => now,
   });
 
-  assert.equal((await router.handle(chat('.lo3; quit'))).matched, false);
-  assert.equal((await router.handle(chat('.lo3'))).executed, true);
-  assert.equal((await router.handle(chat('.lo3'))).reason, 'cooldown');
+  assert.equal((await router.handle(chat('.cal; quit'))).matched, false);
+  assert.equal((await router.handle(chat('.cal'))).executed, true);
+  assert.equal((await router.handle(chat('.cal'))).reason, 'cooldown');
   now += 3001;
-  assert.equal((await router.handle(chat('.lo3'))).executed, true);
-  assert.deepEqual(commands, ['exec lo3.cfg', 'exec lo3.cfg']);
+  assert.equal((await router.handle(chat('.cal'))).executed, true);
+  assert.deepEqual(commands, ['exec cal.cfg', 'exec cal.cfg']);
 });

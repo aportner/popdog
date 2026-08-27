@@ -1,15 +1,15 @@
 const { HLTV_RECORDING_STATUS_PATTERN } = require('./match-status');
 const { sendPopdogSay } = require('./goldsrc-rcon');
 
+const STOP_RECORDING_STEP = {
+  target: 'hltv',
+  command: 'stoprecording',
+  announcePattern: /^Completed demo [a-zA-Z0-9_.-]+\.dem\.$/,
+};
+
 const STOP_RECORDING = {
   id: 'stoprecording',
-  steps: [
-    {
-      target: 'hltv',
-      command: 'stoprecording',
-      announcePattern: /^Completed demo [a-zA-Z0-9_.-]+\.dem\.$/,
-    },
-  ],
+  steps: [STOP_RECORDING_STEP],
 };
 
 const CAL_OVERTIME = {
@@ -27,6 +27,15 @@ const SWAP_TEAMS = {
   steps: [{ target: 'game', command: 'swapteams 1' }],
 };
 
+function recordStep(recordingPrefix) {
+  return {
+    target: 'hltv',
+    command: `record ${recordingPrefix}`,
+    confirmRecording: true,
+    includeDiskSpace: true,
+  };
+}
+
 function endRound(command) {
   return {
     id: 'endround',
@@ -40,8 +49,23 @@ function wait(milliseconds) {
 
 function createCommands(recordingPrefix) {
   return new Map([
-    ['.lo3', { id: 'lo3', steps: [{ target: 'game', command: 'exec lo3.cfg' }] }],
-    ['.pregame', { id: 'pregame', steps: [{ target: 'game', command: 'exec pregame.cfg' }] }],
+    [
+      '.lo3',
+      {
+        id: 'lo3',
+        steps: [recordStep(recordingPrefix), { target: 'game', command: 'exec lo3.cfg' }],
+      },
+    ],
+    [
+      '.pregame',
+      {
+        id: 'pregame',
+        steps: [
+          STOP_RECORDING_STEP,
+          { target: 'game', command: 'exec pregame.cfg' },
+        ],
+      },
+    ],
     ['.cal', { id: 'cal', steps: [{ target: 'game', command: 'exec cal.cfg' }] }],
     ['.calot', CAL_OVERTIME],
     ['.ot', CAL_OVERTIME],
@@ -65,15 +89,10 @@ function createCommands(recordingPrefix) {
       '.record',
       {
         id: 'record',
-        steps: [
-          {
-            target: 'hltv',
-            command: `record ${recordingPrefix}`,
-            confirmRecording: true,
-          },
-        ],
+        steps: [recordStep(recordingPrefix)],
       },
     ],
+    ['.matchreset', { id: 'matchreset', steps: [STOP_RECORDING_STEP] }],
     ['.stop', STOP_RECORDING],
     ['.stoprecording', STOP_RECORDING],
   ]);
@@ -95,6 +114,7 @@ function resolveAction(message, commands) {
         trigger,
         action: {
           id: 'setscore',
+          metadata: { ct: scores[0], t: scores[1] },
           steps: [{ target: 'game', command: `setscore ${scores[0]} ${scores[1]}` }],
         },
       };
@@ -108,7 +128,11 @@ function resolveAction(message, commands) {
     trigger,
     action: {
       id: 'changelevel',
-      steps: [{ target: 'game', command: `changelevel ${mapMatch[1]}` }],
+      metadata: { map: mapMatch[1] },
+      steps: [
+        STOP_RECORDING_STEP,
+        { target: 'game', command: `changelevel ${mapMatch[1]}` },
+      ],
     },
   };
 }
@@ -123,6 +147,7 @@ class GameCommandRouter {
     now = Date.now,
     getDiskSpace = async () => null,
     getStatusAnnouncement = async () => 'Status unavailable',
+    onActionExecuted = async () => [],
   }) {
     this.targets = new Map([
       ['game', gameRcon],
@@ -134,6 +159,7 @@ class GameCommandRouter {
     this.now = now;
     this.getDiskSpace = getDiskSpace;
     this.getStatusAnnouncement = getStatusAnnouncement;
+    this.onActionExecuted = onActionExecuted;
     this.lastExecuted = new Map();
     this.inFlight = new Set();
   }
@@ -204,13 +230,25 @@ class GameCommandRouter {
         }
 
         if (announcementMatch) {
-          if (action.id === 'record') {
+          if (step.includeDiskSpace) {
             const diskSpace = await this.getDiskSpace();
             if (diskSpace) announcement += ` (${diskSpace} free)`;
           }
           const sent = await sendPopdogSay(rcon, announcement);
           executedCommands.push(`${step.target}: ${sent.command}`);
         }
+      }
+
+      const lifecycleAnnouncements = await this.onActionExecuted({
+        id: action.id,
+        metadata: action.metadata || null,
+        trigger,
+        authId,
+      });
+      const gameRcon = this.targets.get('game');
+      for (const announcement of lifecycleAnnouncements || []) {
+        const sent = await sendPopdogSay(gameRcon, announcement);
+        executedCommands.push(`game: ${sent.command}`);
       }
       this.lastExecuted.set(action.id, now);
       return {

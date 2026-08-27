@@ -11,6 +11,8 @@ const INFO_REQUEST = Buffer.concat([
 ]);
 const TIMESTAMP_PATTERN = /^L (?<timestamp>\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}:\d{2}): (?<message>.*)$/;
 const CHAT_PATTERN = /^"(?<name>.*)<(?<userId>\d+)><(?<authId>[^>]*)><(?<team>[^>]*)>" (?<verb>say|say_team) "(?<chat>.*)"(?<dead> \(dead\))?$/;
+const ROUND_RESULT_PATTERN = /^(?:Team "(?<winner>CT|TERRORIST)"|World) triggered "(?<reason>[^"]+)" \(CT "(?<ct>\d+)"\) \(T "(?<t>\d+)"\)$/;
+const MAP_START_PATTERN = /^Started map "(?<map>[a-zA-Z0-9_-]{1,64})"/;
 
 function cleanText(value) {
   return value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim();
@@ -53,6 +55,24 @@ function parseLogLine(raw) {
   const timestamp = timestampMatch?.groups.timestamp || null;
   const message = timestampMatch?.groups.message || raw;
   const chatMatch = message.match(CHAT_PATTERN);
+
+  const roundResultMatch = message.match(ROUND_RESULT_PATTERN);
+  if (roundResultMatch) {
+    return {
+      type: 'round_result',
+      timestamp,
+      winner: roundResultMatch.groups.winner || null,
+      reason: roundResultMatch.groups.reason,
+      ct: Number(roundResultMatch.groups.ct),
+      t: Number(roundResultMatch.groups.t),
+      raw,
+    };
+  }
+
+  const mapStartMatch = message.match(MAP_START_PATTERN);
+  if (mapStartMatch) {
+    return { type: 'map_start', timestamp, map: mapStartMatch.groups.map, raw };
+  }
 
   if (!chatMatch) return { type: 'log', timestamp, message, raw };
 
