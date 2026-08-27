@@ -17,9 +17,10 @@ test('tracks an MR12 match across halftime using current CT and T sides', () => 
   tracker.startLo3('de_dust2');
   assert.equal(tracker.snapshot().phase, 'second_half');
   assert.equal(tracker.statusText(), 'Match: CT 5-7 T (second half)');
-  assert.equal(tracker.applyRoundResult({ ct: 3, t: 4 }).announcement,
+  assert.deepEqual(tracker.restartScore(), { ct: 5, t: 7 });
+  assert.equal(tracker.applyRoundResult({ ct: 8, t: 11 }).announcement,
     'Round over. Score: CT 8-11 T.');
-  const final = tracker.applyRoundResult({ ct: 3, t: 6 });
+  const final = tracker.applyRoundResult({ ct: 8, t: 13 });
   assert.equal(final.complete, true);
   assert.equal(final.announcement, 'Final: CT 8-13 T.');
   assert.equal(tracker.snapshot().phase, 'pregame');
@@ -29,18 +30,22 @@ test('tracks an MR12 match across halftime using current CT and T sides', () => 
 test('repeated LO3 discards only the provisional current-half score', () => {
   const tracker = new MatchTracker();
   tracker.startLo3('de_nuke');
+  assert.equal(tracker.restartScore(), null);
   tracker.applyRoundResult({ ct: 2, t: 0 });
+  assert.deepEqual(tracker.restartScore(), { ct: 2, t: 0 });
   const restartedFirst = tracker.startLo3('de_nuke');
   assert.match(restartedFirst.announcement, /CT 2-0 T was discarded/);
   assert.deepEqual(tracker.snapshot().currentHalf, { ct: 0, t: 0 });
+  assert.equal(tracker.restartScore(), null);
 
   tracker.applyRoundResult({ ct: 7, t: 5 });
   tracker.startLo3('de_nuke');
-  tracker.applyRoundResult({ ct: 1, t: 2 });
+  tracker.applyRoundResult({ ct: 6, t: 9 });
   tracker.startLo3('de_nuke');
   assert.deepEqual(tracker.snapshot().firstHalf, { ct: 7, t: 5 });
   assert.deepEqual(tracker.snapshot().currentHalf, { ct: 0, t: 0 });
   assert.equal(tracker.snapshot().phase, 'second_half');
+  assert.deepEqual(tracker.restartScore(), { ct: 5, t: 7 });
 });
 
 test('pregame suspends and LO3 resumes the same half from zero', () => {
@@ -59,7 +64,7 @@ test('suspended second-half status retains the swapped CT and T score', () => {
   tracker.startLo3('de_train');
   tracker.applyRoundResult({ ct: 7, t: 5 });
   tracker.startLo3('de_train');
-  tracker.applyRoundResult({ ct: 2, t: 1 });
+  tracker.applyRoundResult({ ct: 7, t: 8 });
   tracker.enterPregame();
 
   assert.equal(tracker.statusText(), 'Match: CT 7-8 T (suspended)');
@@ -72,7 +77,7 @@ test('cumulative scores are idempotent and a regulation tie remains active', () 
   assert.equal(tracker.applyRoundResult({ ct: 1, t: 0 }).duplicate, true);
   tracker.applyRoundResult({ ct: 6, t: 6 });
   tracker.startLo3('de_inferno');
-  const tied = tracker.applyRoundResult({ ct: 6, t: 6 });
+  const tied = tracker.applyRoundResult({ ct: 12, t: 12 });
   assert.equal(tied.tied, true);
   assert.equal(tracker.snapshot().phase, 'tied');
   assert.equal(tracker.statusText(), 'Match: CT 12-12 T (tied)');
@@ -91,7 +96,7 @@ test('announces match point when exactly one side reaches MR12', () => {
   secondHalfMatchPoint.startLo3('de_nuke');
   secondHalfMatchPoint.applyRoundResult({ ct: 6, t: 6 });
   secondHalfMatchPoint.startLo3('de_nuke');
-  const round = secondHalfMatchPoint.applyRoundResult({ ct: 5, t: 6 });
+  const round = secondHalfMatchPoint.applyRoundResult({ ct: 11, t: 12 });
   assert.equal(
     round.announcement,
     'Round over. Score: CT 11-12 T. Match point. Next round is the final round of the half.',

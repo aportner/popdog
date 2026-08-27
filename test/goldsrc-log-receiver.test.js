@@ -43,7 +43,7 @@ test('parses dead-player chat as a command-capable chat event', () => {
   assert.equal(event.player.authId, 'STEAM_0:1:2');
 });
 
-test('parses cumulative round results and map starts', () => {
+test('parses cumulative round results, map starts, and restart lifecycle events', () => {
   const resultLine =
     'L 08/27/2026 - 15:22:38: Team "TERRORIST" triggered "Hostages_Not_Rescued" (CT "0") (T "1")';
   assert.deepEqual(parseLogLine(resultLine), {
@@ -62,6 +62,29 @@ test('parses cumulative round results and map starts', () => {
     timestamp: '08/27/2026 - 15:23:00',
     map: 'de_nuke',
     raw: mapLine,
+  });
+
+  const restartLine =
+    'L 08/27/2026 - 20:10:24: World triggered "Restart_Round_(1_second)"';
+  assert.deepEqual(parseLogLine(restartLine), {
+    type: 'round_restart',
+    timestamp: '08/27/2026 - 20:10:24',
+    delaySeconds: 1,
+    raw: restartLine,
+  });
+
+  const pluralRestart = parseLogLine(
+    'L 08/27/2026 - 20:10:24: World triggered "Restart_Round_(3_seconds)"',
+  );
+  assert.equal(pluralRestart.type, 'round_restart');
+  assert.equal(pluralRestart.delaySeconds, 3);
+
+  const roundStartLine =
+    'L 08/27/2026 - 20:10:27: World triggered "Round_Start"';
+  assert.deepEqual(parseLogLine(roundStartLine), {
+    type: 'round_start',
+    timestamp: '08/27/2026 - 20:10:27',
+    raw: roundStartLine,
   });
 });
 

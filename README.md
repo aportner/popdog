@@ -120,6 +120,14 @@ half's provisional server score. At the configured MR total (12 by default),
 Popdog checkpoints the first half; the next `.lo3` starts half two with logical
 CT and T totals reassigned to the players' new sides.
 
+When ReHLDS logs `Restart_Round` during an active match, Popdog queues a score
+restore. It waits for the following `Round_Start`, after the server reset has
+finished, before restoring its expected nonzero scoreboard with `setscore`.
+Initial and repeated first-half LO3s remain at the server's native 0-0 reset. A
+second-half LO3 restores the swapped halftime checkpoint, while a standalone
+`.rr1` or `.rr3` restores the full score from before the restart. Second-half
+round logs are interpreted relative to the restored checkpoint.
+
 Popdog parses ReGameDLL's cumulative round-result logs and announces the
 current CT-versus-T score after each change. It announces the final round of
 each half, checkpoints halftime, ends regulation when either side reaches MR+1,

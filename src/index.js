@@ -20,6 +20,7 @@ const { formatMatchStatus } = require('./match-status');
 const { MatchStateStore } = require('./match-state-store');
 const { MatchTracker, normalizeState } = require('./match-tracker');
 const { RecordingGuard } = require('./recording-guard');
+const { RestartScoreRestorer } = require('./restart-score');
 
 const config = loadConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -48,6 +49,10 @@ let shuttingDown = false;
 const matchStore = new MatchStateStore(config.match.statePath);
 const matchTracker = new MatchTracker({ maxRoundsPerHalf: config.match.maxRoundsPerHalf });
 let matchWork = Promise.resolve();
+const restartScoreRestorer = new RestartScoreRestorer({
+  matchTracker,
+  gameRcon: rcon,
+});
 
 function serializeMatchWork(task) {
   const run = matchWork.then(task);
@@ -162,8 +167,27 @@ gameLogs.on('chat', (event) => {
 });
 
 gameLogs.on('event', (event) => {
-  if (!['round_result', 'map_start'].includes(event.type)) return;
+  if (!['round_result', 'map_start', 'round_restart', 'round_start'].includes(event.type)) return;
   void serializeMatchWork(async () => {
+    if (event.type === 'round_restart') {
+      restartScoreRestorer.queue();
+      return;
+    }
+
+    if (event.type === 'round_start') {
+      try {
+        const restored = await restartScoreRestorer.onRoundStart();
+        if (restored.restored) {
+          console.log(
+            `Restored score after round restart: CT ${restored.score.ct}-${restored.score.t} T`,
+          );
+        }
+      } catch (error) {
+        console.warn('Could not restore the score after round restart:', error.message);
+      }
+      return;
+    }
+
     const result =
       event.type === 'round_result'
         ? matchTracker.applyRoundResult(event)

@@ -129,14 +129,23 @@ class MatchTracker {
     if (!['first_half', 'halftime', 'second_half'].includes(this.state.phase)) {
       return { changed: false, announcement: null };
     }
-    return this.applyScore(ct, t, { corrected: true });
+    return this.applyServerScore(ct, t, { corrected: true });
   }
 
   applyRoundResult({ ct, t }) {
     if (!['first_half', 'second_half'].includes(this.state.phase)) {
       return { changed: false, ignored: true };
     }
-    return this.applyScore(ct, t);
+    return this.applyServerScore(ct, t);
+  }
+
+  applyServerScore(ct, t, options = {}) {
+    if (!validScore({ ct, t })) return { changed: false, ignored: true };
+    const baseline = this.serverScoreBaseline();
+    if (ct < baseline.ct || t < baseline.t) {
+      return { changed: false, ignored: true, belowCheckpoint: true };
+    }
+    return this.applyScore(ct - baseline.ct, t - baseline.t, options);
   }
 
   applyScore(ct, t, { corrected = false } = {}) {
@@ -226,6 +235,19 @@ class MatchTracker {
       };
     }
     return { ...this.state.firstHalf };
+  }
+
+  serverScoreBaseline() {
+    if (!this.state.firstHalf) return { ct: 0, t: 0 };
+    const phase = this.state.phase === 'suspended' ? this.state.resumePhase : this.state.phase;
+    if (!['second_half', 'tied'].includes(phase)) return { ct: 0, t: 0 };
+    return { ct: this.state.firstHalf.t, t: this.state.firstHalf.ct };
+  }
+
+  restartScore() {
+    if (!['first_half', 'second_half', 'tied'].includes(this.state.phase)) return null;
+    const score = this.sideScore();
+    return score.ct === 0 && score.t === 0 ? null : score;
   }
 
   scoreAnnouncement({ corrected = false, finalRound = false } = {}) {
