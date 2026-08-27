@@ -14,4 +14,8 @@ test('atomically persists and reloads match state', async (t) => {
   assert.equal(await store.load(), null);
   await store.save(state);
   assert.deepEqual(await store.load(), state);
+
+  await store.clear();
+  assert.equal(await store.load(), null);
+  await store.clear();
 });

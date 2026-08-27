@@ -194,7 +194,11 @@ gameLogs.on('event', (event) => {
         : matchTracker.changeMap(event.map);
     if (!result.changed) return;
 
-    await saveMatchState();
+    if (result.complete) {
+      await matchStore.clear();
+    } else {
+      await saveMatchState();
+    }
     if (result.announcement) await sendPopdogSay(rcon, result.announcement);
     if (result.complete || event.type === 'map_start') {
       try {

@@ -144,7 +144,7 @@ test('changes to a validated map through either alias', async () => {
   ]);
 });
 
-test('runs lifecycle callbacks only after all RCON steps complete', async () => {
+test('updates LO3 lifecycle after recording confirmation but before executing the config', async () => {
   const timeline = [];
   const router = new GameCommandRouter({
     gameRcon: { execute: async (command) => timeline.push(`game:${command}`) },
@@ -170,8 +170,8 @@ test('runs lifecycle callbacks only after all RCON steps complete', async () => 
     'hltv:record match',
     'hltv:status',
     'hltv:say "[PopDog] Start recording to match-2608271536-de_dust2.dem."',
-    'game:exec lo3.cfg',
     'lifecycle:lo3',
+    'game:exec lo3.cfg',
   ]);
 });
 

@@ -136,10 +136,11 @@ return to pregame. `.pregame` stops recording and suspends an unfinished match;
 the next `.lo3` resumes its phase from a fresh 0-0 server half.
 
 State is atomically persisted to `MATCH_STATE_PATH`, so restarts retain active
-matches and halftime checkpoints. `.status` includes the tracked score and
-phase whenever a match is active. Bot-controlled map changes stop recording
-before `changelevel`; unexpected map changes discard provisional matches or
-suspend a saved halftime checkpoint.
+matches and halftime checkpoints. The state file is removed when a match is
+completed. `.status` includes the tracked score and phase whenever a match is
+active. Bot-controlled map changes stop recording before `changelevel`;
+unexpected map changes discard provisional matches or suspend a saved halftime
+checkpoint.
 
 While HLTV is recording, Popdog periodically stops abandoned recordings after
 the configured human-player grace period and stops immediately below the free

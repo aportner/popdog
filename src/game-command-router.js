@@ -53,7 +53,10 @@ function createCommands(recordingPrefix) {
       '.lo3',
       {
         id: 'lo3',
-        steps: [recordStep(recordingPrefix), { target: 'game', command: 'exec lo3.cfg' }],
+        steps: [
+          recordStep(recordingPrefix),
+          { target: 'game', command: 'exec lo3.cfg', lifecycleBefore: true },
+        ],
       },
     ],
     [
@@ -194,9 +197,27 @@ class GameCommandRouter {
     this.inFlight.add(action.id);
     const executedCommands = [];
     try {
+      let lifecycleComplete = false;
+      const runLifecycle = async () => {
+        if (lifecycleComplete) return;
+        const lifecycleAnnouncements = await this.onActionExecuted({
+          id: action.id,
+          metadata: action.metadata || null,
+          trigger,
+          authId,
+        });
+        const gameRcon = this.targets.get('game');
+        for (const announcement of lifecycleAnnouncements || []) {
+          const sent = await sendPopdogSay(gameRcon, announcement);
+          executedCommands.push(`game: ${sent.command}`);
+        }
+        lifecycleComplete = true;
+      };
+
       for (const step of action.steps) {
         const rcon = this.targets.get(step.target);
         if (!rcon) throw new Error(`${step.target} RCON is not configured`);
+        if (step.lifecycleBefore) await runLifecycle();
         let command = step.command;
         let output;
         if (step.statusAnnouncement) {
@@ -239,17 +260,7 @@ class GameCommandRouter {
         }
       }
 
-      const lifecycleAnnouncements = await this.onActionExecuted({
-        id: action.id,
-        metadata: action.metadata || null,
-        trigger,
-        authId,
-      });
-      const gameRcon = this.targets.get('game');
-      for (const announcement of lifecycleAnnouncements || []) {
-        const sent = await sendPopdogSay(gameRcon, announcement);
-        executedCommands.push(`game: ${sent.command}`);
-      }
+      await runLifecycle();
       this.lastExecuted.set(action.id, now);
       return {
         matched: true,
